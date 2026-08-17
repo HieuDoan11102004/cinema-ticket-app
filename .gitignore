@@ -1,4 +1,51 @@
 # Environment
 .env
-.omc/
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+*.manifest
+*.spec
+
+# Virtual environments
 .venv/
+venv/
+ENV/
+env/
+backend/.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+# uv lock file (usually commit this, but if you want to ignore)
+# uv.lock
+
+# OMC
+.omc/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
