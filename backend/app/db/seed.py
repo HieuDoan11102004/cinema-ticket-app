@@ -1,0 +1,52 @@
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+from faker import Faker
+import psycopg2
+from psycopg2.extras import execute_values
+
+load_dotenv(Path(__file__).resolve().parents[3] / ".env")
+
+fake = Faker("vi_VN")
+Faker.seed(42)
+
+def generate_users(amount):
+    users_list = []
+    for i in range (amount):
+        users_list.append((
+            fake.first_name(),
+            fake.last_name(),
+            fake.unique.email(),
+            fake.address(),
+            fake.phone_number(),
+            fake.date_of_birth(minimum_age=12, maximum_age=50), #birthday
+            fake.date_time_between_dates(datetime_start='-30y', datetime_end='now'), #created_at
+            fake.date_time_between_dates(datetime_start='-30y', datetime_end='now'), #updated_at
+        ))
+    return users_list
+
+users_list = generate_users(20)
+
+conn = psycopg2.connect(
+    dbname=os.getenv("POSTGRES_DB"),
+    user=os.getenv("POSTGRES_USER"),
+    password=os.getenv("POSTGRES_PASSWORD"),
+    host=os.getenv("POSTGRES_HOST"),
+    port=os.getenv("POSTGRES_PORT"),
+)
+
+
+with conn:
+    with conn.cursor() as cur:
+        execute_values(
+            cur,
+            """
+            INSERT INTO users (first_name, last_name, email, address, phone_number, birth_date, created_at, updated_at)
+            VALUES %s
+            """,
+            users_list,
+        )
+
+
+conn.close()
+print(f"Inserted {len(users_list)} rows")
