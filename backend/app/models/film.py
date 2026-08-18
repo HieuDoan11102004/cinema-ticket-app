@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Text, Date, Float, ARRAY
 from sqlalchemy.orm import relationship
-from app.db.database import Base
+from app.shared.db.database import Base
 
 
 class Film(Base):

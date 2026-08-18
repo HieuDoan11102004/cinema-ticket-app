@@ -4,7 +4,7 @@ import psycopg2
 from psycopg2.extras import execute_values
 import bcrypt
 
-from app.core.config import POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_HOST, POSTGRES_PORT
+from app.shared.core.config import POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_HOST, POSTGRES_PORT
 
 fake = Faker("vi_VN")
 Faker.seed(42)

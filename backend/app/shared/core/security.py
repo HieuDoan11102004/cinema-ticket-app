@@ -1,7 +1,7 @@
 from datetime import datetime, timezone, timedelta
 from authlib.jose import jwt, JoseError
 from passlib.context import CryptContext
-from app.core.config import JWT_SECRET, JWT_ACCESS_TOKEN_EXPIRE, JWT_REFRESH_TOKEN_EXPIRE, ALGORITHM
+from app.shared.core.config import JWT_SECRET, JWT_ACCESS_TOKEN_EXPIRE, JWT_REFRESH_TOKEN_EXPIRE, ALGORITHM
 
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 

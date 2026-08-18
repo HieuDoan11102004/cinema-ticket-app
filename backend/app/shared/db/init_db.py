@@ -12,7 +12,7 @@ from app.models import (
     PaymentProvider,
     PaymentStatus,
 )
-from app.db.database import Base, engine
+from app.shared.db.database import Base, engine
 
 
 def init_db():
