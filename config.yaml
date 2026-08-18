@@ -6,3 +6,8 @@ database:
   db: cinema
   host: localhost
   port: 5432
+
+jwt:
+  algorithm: HS256
+  JWT_ACCESS_TOKEN_EXPIRE: 30m
+  JWT_REFRESH_TOKEN_EXPIRE: 168h

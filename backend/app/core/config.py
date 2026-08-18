@@ -34,5 +34,24 @@ DATABASE_URL = (
     f"@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 )
 
-# JWT configuration (from .env)
+# JWT configuration
+_jwt = _yaml.get("jwt", {})
 JWT_SECRET = getenv("JWT_SECRET", "")
+ALGORITHM = _jwt.get("algorithm", "HS256")
+
+
+def _parse_duration(duration_str: str) -> int:
+    """Parse duration string like '30m' or '168h' to minutes (int)."""
+    if not duration_str:
+        return 30  # default 30 minutes
+    if duration_str.endswith("m"):
+        return int(duration_str[:-1])
+    if duration_str.endswith("h"):
+        return int(duration_str[:-1]) * 60
+    if duration_str.endswith("s"):
+        return int(duration_str[:-1]) // 60
+    return int(duration_str)  # assume raw minutes
+
+
+JWT_ACCESS_TOKEN_EXPIRE = _parse_duration(_jwt.get("JWT_ACCESS_TOKEN_EXPIRE", "30m"))
+JWT_REFRESH_TOKEN_EXPIRE = _parse_duration(_jwt.get("JWT_REFRESH_TOKEN_EXPIRE", "168h"))
