@@ -118,6 +118,8 @@ models/ SQLAlchemy ORM models
 
 schemas/ Pydantic request/response models
 
+repository/ database access layer (CRUD operations for each model)
+
 api/v1/ route handlers (auth, films, bookings, payments, ...)
 
 services/ business logic (booking, payment, recommendation, chatbot)
