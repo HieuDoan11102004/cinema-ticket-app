@@ -1,12 +1,10 @@
 import os
-from pathlib import Path
-from dotenv import load_dotenv
 from faker import Faker
 import psycopg2
 from psycopg2.extras import execute_values
 import bcrypt
 
-load_dotenv(Path(__file__).resolve().parents[3] / ".env")
+from app.core.config import POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_HOST, POSTGRES_PORT
 
 fake = Faker("vi_VN")
 Faker.seed(42)
@@ -37,11 +35,11 @@ def generate_users(amount):
 users_list = generate_users(20)
 
 conn = psycopg2.connect(
-    dbname=os.getenv("POSTGRES_DB"),
-    user=os.getenv("POSTGRES_USER"),
-    password=os.getenv("POSTGRES_PASSWORD"),
-    host=os.getenv("POSTGRES_HOST"),
-    port=os.getenv("POSTGRES_PORT"),
+    dbname=POSTGRES_DB,
+    user=POSTGRES_USER,
+    password=POSTGRES_PASSWORD,
+    host=POSTGRES_HOST,
+    port=POSTGRES_PORT,
 )
 
 with conn:

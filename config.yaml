@@ -1,0 +1,8 @@
+# Non-sensitive configuration
+# Sensitive values (passwords, secrets) go in .env
+
+database:
+  user: user
+  db: cinema
+  host: localhost
+  port: 5432
