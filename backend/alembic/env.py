@@ -1,10 +1,16 @@
 from logging.config import fileConfig
 import os
+from pathlib import Path
 
+from dotenv import load_dotenv
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
+
+# Load .env file
+_project_root = Path(__file__).resolve().parents[2]
+load_dotenv(_project_root / ".env")
 
 # Import models to register them with Base.metadata
 from app.models import User, Film, Showtime, Seat, Booking, BookingSeat, Payment
@@ -17,6 +23,15 @@ config = context.config
 # Set database URL from environment variable (overrides alembic.ini)
 if os.environ.get("DATABASE_URL"):
     config.set_main_option("sqlalchemy.url", os.environ["DATABASE_URL"])
+else:
+    # Build URL from individual environment variables
+    db_user = os.environ.get("POSTGRES_USER", "user")
+    db_password = os.environ.get("POSTGRES_PASSWORD", "password")
+    db_host = os.environ.get("POSTGRES_HOST", "localhost")
+    db_port = os.environ.get("POSTGRES_PORT", "5432")
+    db_name = os.environ.get("POSTGRES_DB", "cinema")
+    db_url = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+    config.set_main_option("sqlalchemy.url", db_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

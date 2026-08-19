@@ -31,6 +31,24 @@ export interface SignupRequest {
   birth_date?: string;
 }
 
+export interface FilmResponse {
+  id: number;
+  title: string;
+  genres: string[];
+  overview: string | null;
+  poster_url: string | null;
+  duration_min: number | null;
+  release_date: string | null;
+  tmdb_id: number | null;
+}
+
+export interface FilmListResponse {
+  films: FilmResponse[];
+  total: number;
+  page: number;
+  per_page: number;
+}
+
 export interface ApiError {
   detail: string;
 }
@@ -156,6 +174,44 @@ class ApiClient {
 
   isAuthenticated(): boolean {
     return this.getToken() !== null;
+  }
+
+  async getFilms(page: number = 1, limit: number = 20): Promise<FilmListResponse> {
+    const token = this.getToken();
+    const headers: HeadersInit = { "Content-Type": "application/json" };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${this.baseUrl}/api/v1/films?skip=${(page - 1) * limit}&limit=${limit}`, {
+      headers,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async getFilmById(id: number): Promise<FilmResponse> {
+    const token = this.getToken();
+    const headers: HeadersInit = { "Content-Type": "application/json" };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${this.baseUrl}/api/v1/films/${id}`, {
+      headers,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
   }
 }
 

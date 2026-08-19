@@ -5,3 +5,16 @@ jwt:
   algorithm: HS256
   JWT_ACCESS_TOKEN_EXPIRE: 30m
   JWT_REFRESH_TOKEN_EXPIRE: 168h
+
+tmdb:
+  api_key: "13cc4897d905245d2db4972b5a138345"
+  access_token: "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIxM2NjNDg5N2Q5MDUyNDVkMmRiNDk3MmI1YTEzODM0NSIsIm5iZiI6MTc4NzE1MDY1MS45MjMsInN1YiI6IjZhODVjMTNiNzg4YzIyYTA0ZjllNTcwMyIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.w3QZUyHACe4kMxq-R9ukMof9MgQfSSEvH86alFSeBLU"
+  base_url: "https://api.themoviedb.org/3"
+  image_base_url: "https://image.tmdb.org/t/p"
+  poster_sizes:
+    - "w92"
+    - "w154"
+    - "w185"
+    - "w342"
+    - "w500"
+    - "original"

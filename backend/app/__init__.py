@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.modules.auth.auth_controller import router as auth_router
+from app.modules.films.film_controller import router as film_router
 
 app = FastAPI(title="CineBook API", version="1.0.0")
 
@@ -20,6 +21,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(film_router)
 
 
 @app.get("/health")

@@ -5,6 +5,7 @@ from pathlib import Path
 import yaml
 from dotenv import load_dotenv
 
+
 def _find_project_root(start: Path) -> Path:
     """Walk up from this file until we find the project root (config.yaml marker)."""
     for candidate in [start, *start.parents]:
