@@ -1,15 +1,18 @@
 from datetime import datetime, timezone, timedelta
+import bcrypt
 from authlib.jose import jwt, JoseError
-from passlib.context import CryptContext
 from app.shared.core.config import JWT_SECRET, JWT_ACCESS_TOKEN_EXPIRE, JWT_REFRESH_TOKEN_EXPIRE, ALGORITHM
 
-pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
-def hash_password(password:str)->str:
-    return pwd_context.hash(password)
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
-def verify_password(plain:str, hashed:str)->bool:
-    return pwd_context.verify(plain, hashed)
+
+def verify_password(plain: str, hashed: str) -> bool:
+    try:
+        return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+    except Exception:
+        return False
 
 def create_token(sub:str, expires_delta:timedelta, token_type:str)->str:
     now = datetime.now(timezone.utc)

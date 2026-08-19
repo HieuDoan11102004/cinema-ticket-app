@@ -5,14 +5,24 @@ from pathlib import Path
 import yaml
 from dotenv import load_dotenv
 
+def _find_project_root(start: Path) -> Path:
+    """Walk up from this file until we find the project root (config.yaml marker)."""
+    for candidate in [start, *start.parents]:
+        if (candidate / "config.yaml").exists():
+            return candidate
+    # Fallback: assume the standard layout (backend/app/shared/core/config.py -> 4 levels up)
+    return start.parents[3]
+
+
+_PROJECT_ROOT = _find_project_root(Path(__file__).resolve())
+
 # Load .env first (sensitive values override yaml)
-_env_path = Path(__file__).resolve().parents[3] / ".env"
-load_dotenv(_env_path)
+load_dotenv(_PROJECT_ROOT / ".env")
 
 
 def _load_yaml():
     """Load config.yaml from project root."""
-    config_path = Path(__file__).resolve().parents[3] / "config.yaml"
+    config_path = _PROJECT_ROOT / "config.yaml"
     if config_path.exists():
         with open(config_path, "r") as f:
             return yaml.safe_load(f)
@@ -21,13 +31,12 @@ def _load_yaml():
 
 _yaml = _load_yaml()
 
-# Database configuration (yaml + .env override for sensitive)
-_db = _yaml.get("database", {})
-POSTGRES_USER = _db.get("user", "")
+# Database configuration (all from .env)
+POSTGRES_USER = getenv("POSTGRES_USER", "")
 POSTGRES_PASSWORD = getenv("POSTGRES_PASSWORD", "")
-POSTGRES_HOST = _db.get("host", "localhost")
-POSTGRES_PORT = str(_db.get("port", "5432"))
-POSTGRES_DB = _db.get("db", "")
+POSTGRES_HOST = getenv("POSTGRES_HOST", "localhost")
+POSTGRES_PORT = getenv("POSTGRES_PORT", "5432")
+POSTGRES_DB = getenv("POSTGRES_DB", "")
 
 DATABASE_URL = (
     f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}"

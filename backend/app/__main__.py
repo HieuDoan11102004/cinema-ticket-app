@@ -1,5 +1,6 @@
-# Allow running as: cd backend && uv run python -m app
-from app.shared.db.init_db import init_db
+import uvicorn
+
+from app import app
 
 if __name__ == "__main__":
-    init_db()
+    uvicorn.run(app, host="0.0.0.0", port=8000)
