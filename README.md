@@ -110,21 +110,24 @@ backend/app/
 
 main.py API entrypoint
 
-core/ config, security, shared dependencies
+shared/ Cross-cutting concerns
+├── core/ config, security
+└── db/ database session setup, seed scripts, init
 
-db/ DB session setup, seed scripts
+models/ SQLAlchemy ORM models (User, Film, Showtime, Seat, Booking, Payment)
 
-models/ SQLAlchemy ORM models
+modules/ Feature modules (each self-contained)
+├── auth/ authentication (signup, login, JWT tokens)
+├── films/ film listing and details
+├── showtimes/ showtime management
+├── bookings/ booking flow (hold → confirm)
+└── payments/ payment processing
 
-schemas/ Pydantic request/response models
-
-repository/ database access layer (CRUD operations for each model)
-
-api/v1/ route handlers (auth, films, bookings, payments, ...)
-
-services/ business logic (booking, payment, recommendation, chatbot)
-
-worker/ background tasks (expired seat holds)
+    Each module contains:
+    ├── dto/ Pydantic request/response schemas
+    ├── {module}_controller.py FastAPI routes
+    ├── {module}_service.py business logic
+    └── {module}_repository.py database access layer
 
 backend/tests/ pytest test suite
 

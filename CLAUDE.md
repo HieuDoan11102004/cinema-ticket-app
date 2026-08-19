@@ -22,7 +22,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 docker-compose up -d db
 
 # Initialize database tables (legacy, use Alembic instead)
-cd backend && uv run python -m app.db.init_db
+cd backend && uv run python -m app.shared.db.init_db
 
 # Alembic migrations
 cd backend && uv run alembic upgrade head        # Apply all migrations
@@ -30,7 +30,7 @@ cd backend && uv run alembic revision --autogenerate -m "description"  # Generat
 cd backend && uv run alembic downgrade -1        # Rollback one migration
 
 # Seed database with fake data (20 users)
-cd backend && uv run python -m app.db.seed
+cd backend && uv run python -m app.shared.db.seed
 
 # Run the FastAPI app (once routes are implemented)
 cd backend && uv run uvicorn app:app --reload
@@ -52,18 +52,27 @@ cd backend && uv run ruff check .
 ```
 app/
 ├── __main__.py          # Entry point: runs init_db()
-├── db/
-│   ├── database.py     # SQLAlchemy engine, SessionLocal, Base
-│   ├── init_db.py      # Creates all tables
-│   └── seed.py         # Seeds database with fake users (Faker)
-├── models/             # SQLAlchemy ORM models
-│   ├── user.py         # User model
-│   ├── film.py         # Film model (with genres as PostgreSQL ARRAY)
-│   ├── showtime.py    # Showtime model
-│   ├── seat.py        # Seat model with status enum
-│   ├── booking.py     # Booking + BookingSeat junction table
-│   └── payment.py     # Payment model with provider/status enums
-└── schemas/           # Pydantic models (not yet created)
+├── shared/              # Cross-cutting concerns
+│   ├── core/
+│   │   ├── config.py    # Configuration (loads config.yaml + .env)
+│   │   └── security.py  # JWT, password hashing (bcrypt/argon2)
+│   └── db/
+│       ├── database.py  # SQLAlchemy engine, SessionLocal, Base
+│       ├── init_db.py   # Creates all tables
+│       └── seed.py      # Seeds database with fake users (Faker)
+├── models/              # SQLAlchemy ORM models
+│   ├── user.py          # User model
+│   ├── film.py          # Film model
+│   ├── showtime.py      # Showtime model
+│   ├── seat.py          # Seat model with status enum
+│   ├── booking.py       # Booking + BookingSeat junction table
+│   └── payment.py       # Payment model with provider/status enums
+└── modules/             # Feature modules (planned)
+    ├── auth/
+    ├── films/
+    ├── showtimes/
+    ├── bookings/
+    └── payments/
 ```
 
 ### Database Models
@@ -106,8 +115,9 @@ The most critical feature is concurrent seat booking. The pattern (not yet imple
 
 ## Development Conventions
 
-- **Database sessions**: Use `get_db()` dependency in FastAPI routes
+- **Database sessions**: Use `get_db()` from `app.shared.db`
 - **Models**: All import from `app.models` to register with `Base.metadata`
+- **Shared utilities**: Import from `app.shared.core` (config, security, database)
 - **Enums**: Python `enum.Enum` for statuses (BookingStatus, SeatStatus, PaymentStatus)
 - **Seed data**: Uses Faker with Vietnamese locale (`Faker("vi_VN")`), seeded for reproducibility
 
