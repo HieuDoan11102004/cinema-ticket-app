@@ -1,4 +1,5 @@
 import os
+import uuid
 from faker import Faker
 import psycopg2
 from psycopg2.extras import execute_values
@@ -19,6 +20,7 @@ def generate_users(amount):
     users_list = []
     for i in range(amount):
         users_list.append((
+            str(uuid.uuid4()),  # UUID for id
             fake.first_name(),
             fake.last_name(),
             fake.unique.email(),
@@ -47,7 +49,7 @@ with conn:
         execute_values(
             cur,
             """
-            INSERT INTO users (first_name, last_name, email, password_hash, address, phone_number, birth_date, created_at, updated_at)
+            INSERT INTO users (id, first_name, last_name, email, password_hash, address, phone_number, birth_date, created_at, updated_at)
             VALUES %s
             """,
             users_list,

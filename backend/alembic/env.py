@@ -8,7 +8,7 @@ from alembic import context
 
 # Import models to register them with Base.metadata
 from app.models import User, Film, Showtime, Seat, Booking, BookingSeat, Payment
-from app.db.database import Base
+from app.shared.db.database import Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

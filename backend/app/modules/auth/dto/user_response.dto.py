@@ -1,3 +1,4 @@
+import uuid
 from datetime import date
 
 from pydantic import BaseModel, ConfigDict, EmailStr
@@ -6,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr
 class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
+    id: uuid.UUID
     first_name: str
     last_name: str
     email: EmailStr
