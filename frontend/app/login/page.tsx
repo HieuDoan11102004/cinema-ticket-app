@@ -51,19 +51,16 @@ function LoginForm() {
     setIsLoading(true);
 
     try {
-      // Login and get token
+      // Login - tokens are now stored in HttpOnly cookies by the backend
       await api.login({
         email: formData.email,
         password: formData.password,
       });
 
-      // Fetch user data
+      // Fetch user data (will use cookie for auth)
       const user = await api.getCurrentUser();
-      if (user) {
-        // Store user for session
-        if (typeof window !== "undefined") {
-          localStorage.setItem("user", JSON.stringify(user));
-        }
+      if (!user) {
+        throw new Error("Failed to fetch user data");
       }
 
       // Redirect to movies page after successful login

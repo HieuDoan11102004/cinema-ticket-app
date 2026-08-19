@@ -71,7 +71,7 @@ class AuthService:
 
         # Decode and validate refresh token
         claims = decode_token(refresh_token)
-
+         
         # Verify token type
         if claims.get("type") != "refresh":
             raise ValueError("Invalid token type")
@@ -101,3 +101,21 @@ class AuthService:
         if user is None:
             return None
         return UserResponse.model_validate(user)
+
+    def revoke_access_token(self, access_token: str) -> bool:
+        """Revoke an access token by blocking its JTI. Returns True if revoked."""
+        from app.shared.core.security import decode_token, is_token_blocked, block_token
+
+        try:
+            claims = decode_token(access_token)
+        except ValueError:
+            return False
+
+        if claims.get("type") != "access":
+            return False
+
+        jti = claims.get("jti")
+        if jti and not is_token_blocked(jti):
+            block_token(jti)
+            return True
+        return False

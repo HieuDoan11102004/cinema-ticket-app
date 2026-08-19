@@ -68,6 +68,7 @@ class ApiClient {
 
     const config: RequestInit = {
       ...options,
+      credentials: "include", // Important: send cookies automatically
       headers: {
         "Content-Type": "application/json",
         ...options.headers,
@@ -90,11 +91,8 @@ class ApiClient {
       body: JSON.stringify(data),
     });
 
-    // Store tokens in localStorage on successful login
-    if (typeof window !== "undefined") {
-      localStorage.setItem("access_token", response.access_token);
-      localStorage.setItem("refresh_token", response.refresh_token);
-    }
+    // Tokens are now stored in HttpOnly cookies by the backend
+    // No need to store in localStorage
 
     return response;
   }
@@ -107,47 +105,27 @@ class ApiClient {
   }
 
   async logout(): Promise<void> {
-    const token = this.getToken();
-    if (token) {
-      try {
-        await this.request("/api/v1/auth/logout", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-      } catch {
-        // Ignore errors on logout
-      }
+    try {
+      await this.request("/api/v1/auth/logout", {
+        method: "POST",
+      });
+    } catch {
+      // Ignore errors on logout
     }
 
-    // Clear stored tokens
+    // Clear user data from localStorage
     if (typeof window !== "undefined") {
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
       localStorage.removeItem("user");
     }
   }
 
-  getToken(): string | null {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("access_token");
-    }
-    return null;
-  }
-
   async getCurrentUser(): Promise<UserResponse | null> {
-    const token = this.getToken();
-    if (!token) return null;
-
     try {
       const user = await this.request<UserResponse>("/api/v1/auth/me", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        // No Authorization header needed - cookie is sent automatically
       });
 
-      // Store user data
+      // Store user data for quick access
       if (typeof window !== "undefined") {
         localStorage.setItem("user", JSON.stringify(user));
       }
@@ -173,19 +151,32 @@ class ApiClient {
   }
 
   isAuthenticated(): boolean {
-    return this.getToken() !== null;
+    // Check if we have a user cached (quick client-side check)
+    // The real check is server-side via /me endpoint
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("user") !== null;
+    }
+    return false;
+  }
+
+  async refreshToken(): Promise<boolean> {
+    try {
+      await this.request("/api/v1/auth/refresh", {
+        method: "POST",
+      });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async getFilms(page: number = 1, limit: number = 20): Promise<FilmListResponse> {
-    const token = this.getToken();
-    const headers: HeadersInit = { "Content-Type": "application/json" };
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(`${this.baseUrl}/api/v1/films?skip=${(page - 1) * limit}&limit=${limit}`, {
-      headers,
-    });
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/films?skip=${(page - 1) * limit}&limit=${limit}`,
+      {
+        credentials: "include", // Send auth cookies
+      }
+    );
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -196,14 +187,8 @@ class ApiClient {
   }
 
   async getFilmById(id: number): Promise<FilmResponse> {
-    const token = this.getToken();
-    const headers: HeadersInit = { "Content-Type": "application/json" };
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-
     const response = await fetch(`${this.baseUrl}/api/v1/films/${id}`, {
-      headers,
+      credentials: "include", // Send auth cookies
     });
 
     if (!response.ok) {

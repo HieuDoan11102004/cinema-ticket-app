@@ -1,6 +1,7 @@
 import uuid
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
@@ -11,22 +12,20 @@ from app.modules.auth.dto.message_response import MessageResponse
 from app.modules.auth.dto.signup_request import SignupRequest
 from app.modules.auth.dto.token_response import TokenResponse
 from app.modules.auth.dto.user_response import UserResponse
-from app.shared.core.security import decode_token, is_token_blocked, block_token
+from app.shared.core.config import JWT_ACCESS_TOKEN_EXPIRE, JWT_REFRESH_TOKEN_EXPIRE
+from app.shared.core.security import decode_token, is_token_blocked
 from app.shared.db.database import get_db
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
-security = HTTPBearer()
+security_optional = HTTPBearer(auto_error=False)
 
 
 def get_auth_service(db: Session = Depends(get_db)) -> AuthService:
     return AuthService(AuthRepository(db))
 
 
-def get_current_user_id(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-) -> uuid.UUID:
-    """Extract and validate the user ID from the Bearer token."""
-    token = credentials.credentials
+def _get_user_id_from_token(token: str) -> uuid.UUID:
+    """Decode token and return user_id if valid."""
     try:
         claims = decode_token(token)
     except ValueError:
@@ -70,6 +69,27 @@ def get_current_user_id(
         )
 
 
+def get_current_user_id(
+    request: Request,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security_optional)] = None,
+) -> uuid.UUID:
+    """Extract and validate the user ID from Bearer token or cookie."""
+    # Try Bearer token first
+    if credentials:
+        return _get_user_id_from_token(credentials.credentials)
+
+    # Fall back to cookie
+    access_token = request.cookies.get("access_token")
+    if access_token:
+        return _get_user_id_from_token(access_token)
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="No authentication token provided",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
 @router.post(
     "/signup",
     response_model=UserResponse,
@@ -90,6 +110,37 @@ def signup(
         )
 
 
+def _set_token_cookies(response: Response, tokens: TokenResponse) -> None:
+    """Set access and refresh tokens as HttpOnly cookies."""
+    access_max_age = JWT_ACCESS_TOKEN_EXPIRE * 60  # Convert minutes to seconds
+    refresh_max_age = JWT_REFRESH_TOKEN_EXPIRE * 60 * 60  # Convert hours to seconds
+
+    response.set_cookie(
+        key="access_token",
+        value=tokens.access_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=access_max_age,
+        path="/",
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=tokens.refresh_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=refresh_max_age,
+        path="/",
+    )
+
+
+def _clear_token_cookies(response: Response) -> None:
+    """Clear access and refresh token cookies."""
+    response.delete_cookie(key="access_token", path="/")
+    response.delete_cookie(key="refresh_token", path="/")
+
+
 @router.post(
     "/login",
     response_model=TokenResponse,
@@ -98,10 +149,13 @@ def signup(
 def login(
     login_dto: LoginRequest,
     auth_service: AuthService = Depends(get_auth_service),
+    response: Response = None,# type: ignore[arg-type]
 ) -> TokenResponse:
-    """Authenticate with email and password, returning access + refresh tokens."""
+    """Authenticate with email and password, returning tokens in HttpOnly cookies."""
     try:
-        return auth_service.login(login_dto)
+        tokens = auth_service.login(login_dto)
+        _set_token_cookies(response, tokens)
+        return tokens
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -115,12 +169,22 @@ def login(
     responses={401: {"model": MessageResponse}},
 )
 def refresh_tokens(
-    refresh_token: str,
+    response: Response,
+    request: Request,
     auth_service: AuthService = Depends(get_auth_service),
 ) -> TokenResponse:
-    """Issue a new access + refresh token pair from a valid refresh token."""
+    """Refresh access token using refresh token from cookie."""
+    refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token not found",
+        )
+
     try:
-        return auth_service.refresh_tokens(refresh_token)
+        tokens = auth_service.refresh_tokens(refresh_token)
+        _set_token_cookies(response, tokens)
+        return tokens
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -153,23 +217,14 @@ def get_current_user(
     responses={401: {"model": MessageResponse}},
 )
 def logout(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    response: Response,
+    request: Request,
+    auth_service: AuthService = Depends(get_auth_service),
 ) -> MessageResponse:
-    """Revoke the current access token (logout)."""
-    token = credentials.credentials
-    try:
-        claims = decode_token(token)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    """Revoke the current access token and clear cookies (logout)."""
+    access_token = request.cookies.get("access_token")
+    if access_token:
+        auth_service.revoke_access_token(access_token)
 
-    # Add token's JTI to blocklist
-    jti = claims.get("jti")
-    if jti:
-        block_token(jti)
-
+    _clear_token_cookies(response)
     return MessageResponse(detail="Successfully logged out")
-
