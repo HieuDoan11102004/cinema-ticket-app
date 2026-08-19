@@ -11,7 +11,7 @@ from app.modules.auth.dto.message_response import MessageResponse
 from app.modules.auth.dto.signup_request import SignupRequest
 from app.modules.auth.dto.token_response import TokenResponse
 from app.modules.auth.dto.user_response import UserResponse
-from app.shared.core.security import decode_token
+from app.shared.core.security import decode_token, is_token_blocked, block_token
 from app.shared.db.database import get_db
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
@@ -48,6 +48,15 @@ def get_current_user_id(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token payload",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Check if token has been revoked
+    jti = claims.get("jti")
+    if jti and is_token_blocked(jti):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -136,4 +145,31 @@ def get_current_user(
             detail="User not found",
         )
     return user
+
+
+@router.post(
+    "/logout",
+    response_model=MessageResponse,
+    responses={401: {"model": MessageResponse}},
+)
+def logout(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> MessageResponse:
+    """Revoke the current access token (logout)."""
+    token = credentials.credentials
+    try:
+        claims = decode_token(token)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Add token's JTI to blocklist
+    jti = claims.get("jti")
+    if jti:
+        block_token(jti)
+
+    return MessageResponse(detail="Successfully logged out")
 
