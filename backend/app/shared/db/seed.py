@@ -1,5 +1,7 @@
 import os
 import uuid
+import random
+from datetime import datetime, timedelta
 from faker import Faker
 import psycopg2
 from psycopg2.extras import execute_values
@@ -9,6 +11,7 @@ from app.shared.core.config import POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
 
 fake = Faker("vi_VN")
 Faker.seed(42)
+random.seed(42)
 
 
 def generate_password_hash():
@@ -36,6 +39,38 @@ def generate_users(amount):
 
 users_list = generate_users(20)
 
+
+def generate_showtimes(films, shows_per_film=3):
+    """Generate showtimes for existing films."""
+    rooms = ["Room 1", "Room 2", "Room 3", "Room 4", "Room 5"]
+    showtimes_list = []
+
+    for film in films:
+        used_times = set()
+        for _ in range(shows_per_film):
+            days_from_now = random.randint(1, 14)
+            hour = random.choice([9, 11, 13, 15, 17, 19, 21])
+
+            # Ensure unique time slot per film per day
+            key = (days_from_now, hour)
+            while key in used_times:
+                hour = random.choice([9, 11, 13, 15, 17, 19, 21])
+                key = (days_from_now, hour)
+            used_times.add(key)
+
+            start = datetime.now() + timedelta(days=days_from_now)
+            start = start.replace(hour=hour, minute=0, second=0, microsecond=0)
+
+            showtimes_list.append((
+                film[0],  # film_id
+                random.choice(rooms),
+                start,
+                round(random.uniform(8.00, 15.00), 2),
+            ))
+
+    return showtimes_list
+
+
 conn = psycopg2.connect(
     dbname=POSTGRES_DB,
     user=POSTGRES_USER,
@@ -46,14 +81,47 @@ conn = psycopg2.connect(
 
 with conn:
     with conn.cursor() as cur:
-        execute_values(
-            cur,
-            """
-            INSERT INTO users (id, first_name, last_name, email, password_hash, address, phone_number, birth_date, created_at, updated_at)
-            VALUES %s
-            """,
-            users_list,
-        )
+        # Check if users already exist
+        cur.execute("SELECT COUNT(*) FROM users")
+        existing_users = cur.fetchone()[0]
+
+        if existing_users > 0:
+            print(f"Users table already has {existing_users} rows. Skipping user generation.")
+        else:
+            execute_values(
+                cur,
+                """
+                INSERT INTO users (id, first_name, last_name, email, password_hash, address, phone_number, birth_date, created_at, updated_at)
+                VALUES %s
+                """,
+                users_list,
+            )
+            print(f"Inserted {len(users_list)} users")
+
+        # Fetch existing films
+        cur.execute("SELECT id, title FROM films")
+        films = cur.fetchall()
+
+        if films:
+            # Check if showtimes already exist
+            cur.execute("SELECT COUNT(*) FROM showtimes")
+            existing_count = cur.fetchone()[0]
+
+            if existing_count > 0:
+                print(f"Showtimes table already has {existing_count} rows. Skipping showtime generation.")
+                print("Truncate the table first if you want to regenerate: TRUNCATE showtimes RESTART IDENTITY CASCADE;")
+            else:
+                showtimes_list = generate_showtimes(films, shows_per_film=3)
+                execute_values(
+                    cur,
+                    """
+                    INSERT INTO showtimes (film_id, cinema_room, start_time, base_price)
+                    VALUES %s
+                    """,
+                    showtimes_list,
+                )
+                print(f"Inserted {len(showtimes_list)} showtimes for {len(films)} films")
+        else:
+            print("No films found in database. Skipping showtime generation.")
 
 conn.close()
-print(f"Inserted {len(users_list)} rows")
