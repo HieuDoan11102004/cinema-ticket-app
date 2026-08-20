@@ -1,5 +1,5 @@
 """Film API endpoints."""
-from typing import Optional
+from typing import Optional, List
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
@@ -13,14 +13,29 @@ router = APIRouter(prefix="/api/v1/films", tags=["films"])
 
 @router.get("", response_model=FilmListResponse)
 async def list_films(
+    q: Optional[str] = Query(None, description="Search query for film title"),
+    genres: Optional[str] = Query(None, description="Comma-separated list of genres to filter by"),
+    status: Optional[str] = Query(None, description="Filter by status (e.g., Released, Post Production)"),
     skip: int = Query(0, ge=0, description="Number of films to skip"),
     limit: int = Query(20, ge=1, le=100, description="Max films to return"),
     db: Session = Depends(get_db),
 ):
-    """Get all films with pagination."""
+    """Get all films with optional search and filters."""
     service = FilmService(db)
-    films = service.get_films(skip=skip, limit=limit)
-    total = service.repository.count()
+
+    # If search or filters are provided, use search
+    if q or genres or status:
+        genre_list = [g.strip() for g in genres.split(",")] if genres else None
+        films, total = service.search_films(
+            query=q,
+            genres=genre_list,
+            status=status,
+            skip=skip,
+            limit=limit,
+        )
+    else:
+        films = service.get_films(skip=skip, limit=limit)
+        total = service.repository.count()
 
     return FilmListResponse(
         films=[FilmResponse.model_validate(f) for f in films],

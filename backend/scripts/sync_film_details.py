@@ -25,10 +25,10 @@ async def sync_film_details(film_ids: list[int] | None = None, batch_size: int =
     # Get all films or specific ones
     if film_ids:
         films = [repository.get_by_id(fid) for fid in film_ids]
-        films = [f for f in films if f and f.tmdb_id]
+        films = [f for f in films if f and f.tmdb_id] # type: ignore[arg-type]
     else:
         films = repository.get_all(skip=0, limit=10000)
-        films = [f for f in films if f.tmdb_id]
+        films = [f for f in films if f.tmdb_id] # type: ignore[arg-type]
 
     total = len(films)
     updated = 0
@@ -41,7 +41,7 @@ async def sync_film_details(film_ids: list[int] | None = None, batch_size: int =
         tasks = []
 
         for film in batch:
-            if film and film.tmdb_id:
+            if film and film.tmdb_id: # type: ignore[arg-type]
                 tasks.append((film, film.tmdb_id))
 
         # Process batch concurrently

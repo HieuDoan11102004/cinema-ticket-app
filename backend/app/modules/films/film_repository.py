@@ -1,7 +1,7 @@
 """Film repository for database operations."""
 from typing import List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import select, func, or_, and_
 from sqlalchemy.orm import Session
 
 from app.models.film import Film
@@ -65,5 +65,51 @@ class FilmRepository:
 
     def count(self) -> int:
         """Count total films."""
+        stmt = select(func.count(Film.id))
+        return self.db.scalar(stmt) or 0
+
+    def _build_genre_condition(self, genres: List[str]):
+        """Build SQL condition for genre filtering using PostgreSQL ANY()."""
+        if not genres:
+            return None
+        # Use OR to match any of the selected genres
+        return or_(*[Film.genres.any(g) for g in genres])
+
+    def search(
+        self,
+        query: Optional[str] = None,
+        genres: Optional[List[str]] = None,
+        status: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> tuple[List[Film], int]:
+        """
+        Search films with optional filters.
+        Returns (films, total_count) tuple.
+        """
         stmt = select(Film)
-        return len(list(self.db.scalars(stmt).all()))
+        conditions = []
+
+        if query:
+            conditions.append(Film.title.ilike(f"%{query}%"))
+
+        if status:
+            conditions.append(Film.status == status)
+
+        if genres:
+            conditions.append(self._build_genre_condition(genres))
+
+        if conditions:
+            stmt = stmt.where(and_(*conditions))
+
+        # Get total count
+        count_stmt = select(func.count(Film.id))
+        if conditions:
+            count_stmt = count_stmt.where(and_(*conditions))
+        total = self.db.scalar(count_stmt) or 0
+
+        # Apply pagination
+        stmt = stmt.offset(skip).limit(limit)
+        films = list(self.db.scalars(stmt).all())
+
+        return films, total

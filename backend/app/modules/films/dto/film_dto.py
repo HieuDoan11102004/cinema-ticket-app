@@ -2,7 +2,17 @@
 from datetime import date
 from typing import Optional, List
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+
+class FilmSearchParams(BaseModel):
+    """Search and filter parameters for films."""
+
+    q: Optional[str] = Field(None, description="Search query for film title")
+    genres: Optional[List[str]] = Field(None, description="Filter by genres")
+    status: Optional[str] = Field(None, description="Filter by status (e.g., Released, Post Production)")
+    skip: int = Field(0, ge=0, description="Number of films to skip")
+    limit: int = Field(20, ge=1, le=100, description="Max films to return")
 
 
 class FilmResponse(BaseModel):

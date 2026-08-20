@@ -134,3 +134,20 @@ class FilmService:
     def get_film_by_tmdb_id(self, tmdb_id: int):
         """Get film by TMDB ID."""
         return self.repository.get_by_tmdb_id(tmdb_id)
+
+    def search_films(
+        self,
+        query: Optional[str] = None,
+        genres: Optional[List[str]] = None,
+        status: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 20,
+    ) -> Tuple[List, int]:
+        """Search films with filters."""
+        return self.repository.search(
+            query=query,
+            genres=genres,
+            status=status,
+            skip=skip,
+            limit=limit,
+        )
