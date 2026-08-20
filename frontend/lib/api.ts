@@ -34,12 +34,29 @@ export interface SignupRequest {
 export interface FilmResponse {
   id: number;
   title: string;
-  genres: string[];
+  original_title: string | null;
+  tagline: string | null;
   overview: string | null;
-  poster_url: string | null;
-  duration_min: number | null;
   release_date: string | null;
+  poster_url: string | null;
+  backdrop_url: string | null;
+  trailer_url: string | null;
+  genres: string[];
+  original_language: string;
+  spoken_languages: string[];
+  production_countries: string[];
+  production_companies: string[];
+  runtime: number | null;
+  status: string | null;
+  adult: boolean;
   tmdb_id: number | null;
+  imdb_id: string | null;
+  homepage: string | null;
+  budget: number;
+  revenue: number;
+  vote_average: number;
+  vote_count: number;
+  popularity: number;
 }
 
 export interface FilmListResponse {

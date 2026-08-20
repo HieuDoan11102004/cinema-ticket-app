@@ -133,22 +133,73 @@ class TMDBClient:
             except (ValueError, IndexError):
                 pass
 
-        # Resolve genre IDs to names
+        # Resolve genre IDs to names (when using list endpoint)
         genre_ids = data.get("genre_ids", [])
-        if not genre_ids and data.get("genres"):
-            # If full genre objects are provided, use name field
-            genre_ids = [g["id"] for g in data.get("genres", [])]
+        genres = []
 
-        genres = [TMDB_GENRES.get(gid, str(gid)) for gid in genre_ids]
+        if genre_ids:
+            # From list endpoints (popular, search, etc.)
+            genres = [TMDB_GENRES.get(gid, str(gid)) for gid in genre_ids]
+        elif data.get("genres"):
+            # From detail endpoint (full genre objects)
+            genres = [g["name"] for g in data.get("genres", [])]
+
+        # Extract spoken languages
+        spoken_languages = [
+            lang["english_name"] for lang in data.get("spoken_languages", [])
+            if lang.get("english_name")
+        ]
+
+        # Extract production countries
+        production_countries = [
+            country["name"] for country in data.get("production_countries", [])
+            if country.get("name")
+        ]
+
+        # Extract production companies
+        production_companies = [
+            company["name"] for company in data.get("production_companies", [])
+            if company.get("name")
+        ]
 
         return {
+            # Basic Info
             "title": data.get("title", ""),
-            "genres": genres,
+            "original_title": data.get("original_title"),
+            "tagline": data.get("tagline"),
             "overview": data.get("overview"),
-            "poster_url": self._get_poster_url(data.get("poster_path"), "w500"),
-            "duration_min": data.get("runtime"),
             "release_date": release_date,
+
+            # Media
+            "poster_url": self._get_poster_url(data.get("poster_path"), "w500"),
+            "backdrop_url": self._get_poster_url(data.get("backdrop_path"), "w1280"),
+            "trailer_url": None,  # Requires separate API call to /movie/{id}/videos
+
+            # Metadata
+            "genres": genres,
+            "original_language": data.get("original_language", "en"),
+            "spoken_languages": spoken_languages,
+            "production_countries": production_countries,
+            "production_companies": production_companies,
+
+            # Technical Details
+            "runtime": data.get("runtime"),
+            "status": data.get("status"),
+            "adult": data.get("adult", False),
+
+            # TMDB Metadata
             "tmdb_id": data.get("id"),
+            "imdb_id": data.get("imdb_id"),
+            "homepage": data.get("homepage"),
+
+            # Financial
+            "budget": data.get("budget", 0),
+            "revenue": data.get("revenue", 0),
+
+            # Ratings
+            "vote_average": data.get("vote_average", 0.0),
+            "vote_count": data.get("vote_count", 0),
+            "popularity": data.get("popularity", 0.0),
         }
 
 

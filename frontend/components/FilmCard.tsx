@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FilmResponse } from "@/lib/api";
 
 interface FilmCardProps {
@@ -12,8 +13,8 @@ export function FilmCard({ film, onBookNow }: FilmCardProps) {
 
   return (
     <div className="flex gap-4 bg-surface rounded-xl p-4 border border-border hover:border-primary/50 transition-all duration-200 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5">
-      {/* Poster */}
-      <div className="flex-shrink-0 w-20 h-30 bg-border rounded-lg overflow-hidden">
+      {/* Poster - Clickable */}
+      <Link href={`/movies/${film.id}`} className="flex-shrink-0 w-20 h-30 bg-border rounded-lg overflow-hidden hover:opacity-80 transition-opacity">
         {film.poster_url ? (
           <img
             src={film.poster_url}
@@ -25,13 +26,15 @@ export function FilmCard({ film, onBookNow }: FilmCardProps) {
             🎬
           </div>
         )}
-      </div>
+      </Link>
 
       {/* Info */}
       <div className="flex-1 min-w-0 flex flex-col justify-between">
         <div>
           <div className="flex items-start justify-between gap-2 mb-1">
-            <h3 className="text-lg font-semibold text-white truncate">{film.title}</h3>
+            <Link href={`/movies/${film.id}`} className="hover:text-primary transition-colors">
+              <h3 className="text-lg font-semibold text-white truncate">{film.title}</h3>
+            </Link>
             {year && (
               <span className="flex-shrink-0 text-sm text-text-muted bg-surface px-2 py-0.5 rounded">
                 {year}
@@ -68,12 +71,12 @@ export function FilmCard({ film, onBookNow }: FilmCardProps) {
 
         {/* Actions */}
         <div className="flex items-center gap-2 mt-3">
-          {film.duration_min && (
+          {film.runtime && (
             <span className="text-xs text-text-muted flex items-center gap-1">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              {film.duration_min} min
+              {film.runtime} min
             </span>
           )}
           <button
