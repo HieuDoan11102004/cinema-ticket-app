@@ -215,6 +215,38 @@ class ApiClient {
 
     return response.json();
   }
+
+  async searchFilms(params: {
+    q?: string;
+    genres?: string[];
+    status?: string;
+    skip?: number;
+    limit?: number;
+  }): Promise<FilmListResponse> {
+    const searchParams = new URLSearchParams();
+
+    if (params.q) searchParams.set("q", params.q);
+    if (params.genres && params.genres.length > 0) {
+      searchParams.set("genres", params.genres.join(","));
+    }
+    if (params.status) searchParams.set("status", params.status);
+    if (params.skip) searchParams.set("skip", params.skip.toString());
+    if (params.limit) searchParams.set("limit", params.limit.toString());
+
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/films?${searchParams.toString()}`,
+      {
+        credentials: "include",
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
 }
 
 export const api = new ApiClient(API_BASE_URL);
