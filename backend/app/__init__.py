@@ -5,6 +5,8 @@ from app.modules.auth.auth_controller import router as auth_router
 from app.modules.films.film_controller import router as film_router
 from app.modules.seats.seat_controller import router as seat_router
 from app.modules.showtimes.showtime_controller import router as showtime_router
+from app.modules.bookings.booking_controller import router as booking_router
+from app.modules.payments.payment_controller import router as payment_router
 
 app = FastAPI(title="CineBook API", version="1.0.0")
 
@@ -26,6 +28,8 @@ app.include_router(auth_router)
 app.include_router(film_router)
 app.include_router(seat_router)
 app.include_router(showtime_router)
+app.include_router(booking_router)
+app.include_router(payment_router)
 
 
 @app.get("/health")

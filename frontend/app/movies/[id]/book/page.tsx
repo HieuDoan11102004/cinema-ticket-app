@@ -112,6 +112,40 @@ export default function BookingPage() {
     }
   };
 
+  const handleProceedToPayment = async () => {
+    if (selectedSeats.length === 0 || !selectedShowtime) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Step 1: Create booking from held seats
+      const bookingResult = await api.createBooking(
+        selectedSeats.map((s) => s.id),
+        selectedShowtime.id
+      );
+
+      if (!bookingResult.success || !bookingResult.booking) {
+        setError(bookingResult.message);
+        return;
+      }
+
+      // Step 2: Create checkout/payment session
+      const checkout = await api.createCheckout(bookingResult.booking.id);
+
+      // Step 3: For demo - auto-complete payment (mock)
+      // In production, user would be redirected to payment provider
+      const payment = await api.mockPaymentComplete(checkout.payment_id);
+
+      // Step 4: Redirect to success page
+      router.push(`/bookings/${bookingResult.booking.id}/success`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Payment failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleBack = () => {
     if (step === "seats") {
       handleReleaseSeats();
@@ -373,10 +407,19 @@ export default function BookingPage() {
             </div>
 
             <div className="mt-6">
-              <Button className="w-full" size="large">
+              <Button
+                className="w-full"
+                size="large"
+                onClick={handleProceedToPayment}
+                isLoading={loading}
+                disabled={loading}
+              >
                 Proceed to Payment
               </Button>
             </div>
+            {error && (
+              <p className="text-red-400 text-sm mt-3 text-center">{error}</p>
+            )}
           </div>
         </main>
       </div>

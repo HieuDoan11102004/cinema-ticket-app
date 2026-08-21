@@ -108,6 +108,66 @@ export interface SeatActionResponse {
   released_seats: SeatResponse[];
 }
 
+// Booking types
+export type BookingStatus = "pending" | "confirmed" | "cancelled";
+
+export interface BookingResponse {
+  id: number;
+  user_id: string;
+  showtime_id: number;
+  booking_code: string;
+  total_price: number;
+  status: BookingStatus;
+  expires_at: string | null;
+  cancelled_at: string | null;
+  cancellation_reason: string | null;
+  created_at: string;
+  updated_at: string | null;
+  seats: SeatResponse[];
+}
+
+export interface BookingListResponse {
+  bookings: BookingResponse[];
+  total: number;
+}
+
+export interface BookingActionResponse {
+  success: boolean;
+  message: string;
+  booking: BookingResponse | null;
+}
+
+export interface CreateBookingRequest {
+  seat_ids: number[];
+  showtime_id: number;
+}
+
+// Payment types
+export type PaymentProvider = "stripe" | "vnpay" | "momo";
+export type PaymentStatus = "pending" | "succeeded" | "failed" | "refunded";
+
+export interface CheckoutResponse {
+  checkout_url: string;
+  payment_id: number;
+  amount: number;
+  provider: PaymentProvider;
+  expires_at: string;
+}
+
+export interface PaymentResponse {
+  id: number;
+  booking_id: number;
+  provider: PaymentProvider;
+  status: PaymentStatus;
+  amount: number;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface CreateCheckoutRequest {
+  booking_id: number;
+}
+
 export interface ApiError {
   detail: string;
 }
@@ -369,6 +429,149 @@ class ApiClient {
         showtime_id: showtimeId,
       }),
     });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  // ============ Booking Methods ============
+
+  async createBooking(seatIds: number[], showtimeId: number): Promise<BookingActionResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/bookings`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        seat_ids: seatIds,
+        showtime_id: showtimeId,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async getBookings(skip: number = 0, limit: number = 100): Promise<BookingListResponse> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/bookings?skip=${skip}&limit=${limit}`,
+      {
+        credentials: "include",
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async getBookingById(bookingId: number): Promise<BookingResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/bookings/${bookingId}`, {
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async cancelBooking(bookingId: number, reason?: string): Promise<BookingActionResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/bookings/${bookingId}/cancel`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        reason: reason || null,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  // ============ Payment Methods ============
+
+  async createCheckout(bookingId: number): Promise<CheckoutResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/payments/create-checkout`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        booking_id: bookingId,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async getPayment(paymentId: number): Promise<PaymentResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/payments/${paymentId}`, {
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  // Mock payment completion for testing (remove in production)
+  async mockPaymentComplete(paymentId: number): Promise<PaymentResponse> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/payments/mock-checkout/${paymentId}/complete`,
+      {
+        method: "POST",
+        credentials: "include",
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  // Mock payment failure for testing (remove in production)
+  async mockPaymentFail(paymentId: number): Promise<PaymentResponse> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/payments/mock-checkout/${paymentId}/fail`,
+      {
+        method: "POST",
+        credentials: "include",
+      }
+    );
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));

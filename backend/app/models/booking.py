@@ -17,7 +17,12 @@ class Booking(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     showtime_id = Column(Integer, ForeignKey("showtimes.id"), nullable=False)
+    booking_code = Column(String(20), unique=True, nullable=False, index=True)
+    total_price = Column(Numeric(10, 2), nullable=False)
     status = Column(SQLEnum(BookingStatus), default=BookingStatus.PENDING, nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    cancelled_at = Column(DateTime(timezone=True), nullable=True)
+    cancellation_reason = Column(String(500), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
