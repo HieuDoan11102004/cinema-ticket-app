@@ -1,5 +1,5 @@
 """Seat DTOs for API requests and responses."""
-from typing import List
+from typing import List, Optional
 from pydantic import BaseModel, ConfigDict
 from app.models.seat import SeatStatus
 
@@ -26,6 +26,13 @@ class HoldSeatsRequest(BaseModel):
     showtime_id: int
 
 
+class ExtendHoldRequest(BaseModel):
+    """Request to extend seat hold duration."""
+    seat_ids: List[int]
+    showtime_id: int
+    extra_seconds: Optional[int] = 300
+
+
 class ReleaseSeatsRequest(BaseModel):
     """Request to release held seats."""
     seat_ids: List[int]
@@ -36,4 +43,17 @@ class SeatActionResponse(BaseModel):
     """Response for hold/release actions."""
     success: bool
     message: str
-    released_seats: List[SeatResponse]
+    released_seats: List[SeatResponse] = []
+
+
+class HoldExpiryResponse(BaseModel):
+    """Response for extend hold action."""
+    success: bool
+    message: str
+    extended_count: int
+    remaining_seconds: int
+
+
+class HoldStatusResponse(BaseModel):
+    """Response for hold status check."""
+    seats: dict[int, dict]

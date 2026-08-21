@@ -44,6 +44,20 @@ DATABASE_URL = (
     f"@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 )
 
+# Redis configuration
+REDIS_HOST = getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(getenv("REDIS_PORT", "6379"))
+REDIS_PASSWORD = getenv("REDIS_PASSWORD", "")
+
+REDIS_URL = (
+    f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/0"
+    if REDIS_PASSWORD
+    else f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
+)
+
+# Seat hold lock TTL in seconds (10 minutes)
+SEAT_HOLD_TTL = 600
+
 # JWT configuration
 _jwt = _yaml.get("jwt", {})
 JWT_SECRET = getenv("JWT_SECRET", "")

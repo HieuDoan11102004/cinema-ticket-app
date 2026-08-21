@@ -1,20 +1,22 @@
-"""Booking service for business logic."""
+"""Booking service for business logic with Redis integration."""
 import secrets
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import List, Optional
 from uuid import UUID
 
+import redis.asyncio as redis
 from sqlalchemy.orm import Session
 
-from app.modules.bookings.booking_repository import BookingRepository# type: ignore[arg-type]
-from app.modules.bookings.dto.booking_dto import (# type: ignore[arg-type]
+from app.modules.bookings.booking_repository import BookingRepository
+from app.modules.bookings.dto.booking_dto import (
     CreateBookingRequest,
     BookingResponse,
     BookingListResponse,
     BookingActionResponse,
-)# type: ignore[arg-type]
+)
 from app.modules.seats.seat_repository import SeatRepository
+from app.modules.seats.seat_lock_service import SeatLockService
 from app.modules.showtimes.showtime_repository import ShowtimeRepository
 from app.models.booking import Booking, BookingStatus
 from app.models.seat import SeatStatus
@@ -26,11 +28,24 @@ class BookingService:
     # Booking expires after 10 minutes if not paid
     DEFAULT_EXPIRY_MINUTES = 10
 
-    def __init__(self, db: Session):
+    def __init__(
+        self,
+        db: Session,
+        redis_client: Optional[redis.Redis] = None,
+    ):
         self.db = db
         self.repository = BookingRepository(db)
         self.seat_repository = SeatRepository(db)
         self.showtime_repository = ShowtimeRepository(db)
+        self._redis_client = redis_client
+        self._lock_service: Optional[SeatLockService] = None
+
+    @property
+    def lock_service(self) -> Optional[SeatLockService]:
+        """Lazy initialization of lock service."""
+        if self._lock_service is None and self._redis_client is not None:
+            self._lock_service = SeatLockService(self._redis_client)
+        return self._lock_service
 
     def _generate_booking_code(self) -> str:
         """Generate a unique booking code."""
@@ -65,7 +80,7 @@ class BookingService:
             seats=seats,  # type: ignore[arg-value]
         )
 
-    def create_booking(
+    async def create_booking(
         self,
         user_id: UUID,
         request: CreateBookingRequest,
@@ -76,9 +91,11 @@ class BookingService:
         Flow:
         1. Validate showtime exists
         2. Validate all seats exist and are held by this user
-        3. Calculate total price
-        4. Create booking with PENDING status
-        5. Keep seats in HELD status until payment confirmed
+        3. Verify user owns Redis locks for the seats
+        4. Calculate total price
+        5. Create booking with PENDING status
+        6. Clear Redis locks (seats are now tied to booking)
+        7. Keep seats in HELD status until payment confirmed
         """
         # Validate showtime exists
         showtime = self.showtime_repository.get_by_id(request.showtime_id)
@@ -117,6 +134,26 @@ class BookingService:
                 booking=None,
             )
 
+        # Verify user owns Redis locks
+        if self.lock_service:
+            lock_holders = await self.lock_service.check_locks(
+                seat_ids=request.seat_ids,
+                showtime_id=request.showtime_id,
+            )
+            for seat_id in request.seat_ids:
+                holder = lock_holders.get(seat_id)
+                if holder is None:
+                    # Redis lock expired, but Postgres still shows HELD
+                    # This is okay - the hold just expired, user can still book
+                    pass
+                elif holder != str(user_id):
+                    return BookingActionResponse(
+                        success=False,
+                        message=f"Seat {next(s.seat_label for s in seats if s.id == seat_id)} "
+                                "is held by another user. Please release and try again.",
+                        booking=None,
+                    )
+
         # Calculate total price (base price * number of seats)
         total_price = float(showtime.base_price) * len(seats)
 
@@ -137,6 +174,14 @@ class BookingService:
             seat_ids=request.seat_ids,
             expires_at=expires_at,
         )
+
+        # Clear Redis locks - seats are now tied to the booking
+        if self.lock_service:
+            await self.lock_service.release_locks(
+                seat_ids=request.seat_ids,
+                showtime_id=request.showtime_id,
+                user_id=user_id,
+            )
 
         return BookingActionResponse(
             success=True,
@@ -169,7 +214,7 @@ class BookingService:
             total=total,
         )
 
-    def cancel_booking(
+    async def cancel_booking(
         self,
         booking_id: int,
         user_id: UUID,
@@ -183,6 +228,7 @@ class BookingService:
         2. Validate booking is in PENDING status
         3. Update booking status to CANCELLED
         4. Release all seats back to AVAILABLE
+        5. Clear any remaining Redis locks
         """
         booking = self.repository.get_by_id(booking_id)
         if not booking:
@@ -210,12 +256,21 @@ class BookingService:
 
         # Get seat IDs to release
         seat_ids = [bs.seat_id for bs in booking.booking_seats]
+        showtime_id = booking.showtime_id
 
         # Cancel the booking
         cancelled_booking = self.repository.cancel(booking_id, reason)
 
         # Release the seats back to available
         self.seat_repository.update_status(seat_ids, SeatStatus.AVAILABLE)
+
+        # Clear any remaining Redis locks
+        if self.lock_service:
+            await self.lock_service.release_locks(
+                seat_ids=seat_ids,
+                showtime_id=showtime_id,
+                user_id=user_id,
+            )
 
         return BookingActionResponse(
             success=True,
@@ -243,8 +298,8 @@ class BookingService:
 
         # Check if booking has expired
         if booking.expires_at and booking.expires_at < datetime.now(timezone.utc):
-            # Auto-cancel expired booking
-            self.cancel_booking(booking_id, booking.user_id, "Booking expired")
+            # Auto-cancel expired booking (sync version)
+            self._cancel_expired_booking_sync(booking)
             return None
 
         # Get seat IDs
@@ -258,7 +313,13 @@ class BookingService:
 
         return self._to_response(confirmed_booking)  # type: ignore[return-value]
 
-    def expire_pending_bookings(self) -> int:
+    def _cancel_expired_booking_sync(self, booking: Booking) -> None:
+        """Cancel an expired booking synchronously."""
+        seat_ids = [bs.seat_id for bs in booking.booking_seats]
+        self.repository.cancel(booking.id, "Booking expired - payment timeout")
+        self.seat_repository.update_status(seat_ids, SeatStatus.AVAILABLE)
+
+    async def expire_pending_bookings(self) -> int:
         """
         Find and expire all pending bookings that have passed their expiry time.
         Returns the number of bookings expired.
@@ -268,8 +329,19 @@ class BookingService:
 
         for booking in expired_bookings:
             seat_ids = [bs.seat_id for bs in booking.booking_seats]
+            showtime_id = booking.showtime_id
+
             self.repository.cancel(booking.id, "Booking expired - payment timeout")
             self.seat_repository.update_status(seat_ids, SeatStatus.AVAILABLE)
+
+            # Clear any remaining Redis locks
+            if self.lock_service:
+                await self.lock_service.release_locks(
+                    seat_ids=seat_ids,
+                    showtime_id=showtime_id,
+                    user_id=booking.user_id,
+                )
+
             count += 1
 
         return count

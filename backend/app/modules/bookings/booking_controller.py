@@ -1,14 +1,14 @@
-"""Booking API endpoints."""
+"""Booking API endpoints with Redis integration."""
 import uuid
-from typing import Optional
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.modules.bookings.booking_service import BookingService# type: ignore[arg-type]
-from app.modules.bookings.booking_repository import BookingRepository# type: ignore[arg-type]
-from app.modules.bookings.dto.booking_dto import (# type: ignore[arg-type]
+from app.modules.bookings.booking_service import BookingService
+from app.modules.bookings.booking_repository import BookingRepository
+from app.modules.bookings.dto.booking_dto import (
     CreateBookingRequest,
     BookingResponse,
     BookingListResponse,
@@ -16,6 +16,8 @@ from app.modules.bookings.dto.booking_dto import (# type: ignore[arg-type]
 )
 from app.modules.auth.auth_controller import get_current_user_id
 from app.shared.db.database import get_db
+from app.shared.redis import get_redis
+import redis.asyncio as redis
 
 router = APIRouter(prefix="/api/v1/bookings", tags=["bookings"])
 
@@ -25,9 +27,12 @@ class CancelBookingRequest(BaseModel):
     reason: Optional[str] = None
 
 
-def get_booking_service(db: Session = Depends(get_db)) -> BookingService:
-    """Dependency to get booking service."""
-    return BookingService(db)
+def get_booking_service(
+    db: Session = Depends(get_db),
+    redis_client: redis.Redis = Depends(get_redis),
+) -> BookingService:
+    """Dependency to get booking service with Redis."""
+    return BookingService(db, redis_client)
 
 
 @router.post(
@@ -39,9 +44,9 @@ def get_booking_service(db: Session = Depends(get_db)) -> BookingService:
         401: {"description": "Not authenticated"},
     },
 )
-def create_booking(
+async def create_booking(
     request: CreateBookingRequest,
-    user_id: uuid.UUID = Depends(get_current_user_id),
+    user_id: Annotated[uuid.UUID, Depends(get_current_user_id)],
     service: BookingService = Depends(get_booking_service),
 ) -> BookingActionResponse:
     """
@@ -54,7 +59,7 @@ def create_booking(
 
     Returns a booking with PENDING status. User must complete payment to confirm.
     """
-    return service.create_booking(user_id, request)
+    return await service.create_booking(user_id, request)
 
 
 @router.get(
@@ -109,7 +114,7 @@ def get_booking(
         404: {"description": "Booking not found"},
     },
 )
-def cancel_booking(
+async def cancel_booking(
     booking_id: int,
     request: Optional[CancelBookingRequest] = None,
     user_id: uuid.UUID = Depends(get_current_user_id),
@@ -124,4 +129,4 @@ def cancel_booking(
     - **reason**: Optional reason for cancellation
     """
     reason = request.reason if request else None
-    return service.cancel_booking(booking_id, user_id, reason)
+    return await service.cancel_booking(booking_id, user_id, reason)
