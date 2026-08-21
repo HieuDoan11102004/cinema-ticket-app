@@ -109,7 +109,6 @@ with conn:
 
             if existing_count > 0:
                 print(f"Showtimes table already has {existing_count} rows. Skipping showtime generation.")
-                print("Truncate the table first if you want to regenerate: TRUNCATE showtimes RESTART IDENTITY CASCADE;")
             else:
                 showtimes_list = generate_showtimes(films, shows_per_film=3)
                 execute_values(
@@ -121,7 +120,40 @@ with conn:
                     showtimes_list,
                 )
                 print(f"Inserted {len(showtimes_list)} showtimes for {len(films)} films")
+
+        # Generate seats for each showtime (independent of whether showtimes were just created)
+        cur.execute("SELECT COUNT(*) FROM seats")
+        existing_seats = cur.fetchone()[0]
+
+        if existing_seats > 0:
+            print(f"Seats table already has {existing_seats} rows. Skipping seat generation.")
         else:
-            print("No films found in database. Skipping showtime generation.")
+            cur.execute("SELECT id, cinema_room FROM showtimes")
+            showtimes = cur.fetchall()
+
+            seats_list = []
+            rows = ["A", "B", "C", "D", "E", "F", "G", "H"]
+            seats_per_row = 10
+
+            for showtime_id, room in showtimes:
+                for row in rows:
+                    for seat_num in range(1, seats_per_row + 1):
+                        seat_label = f"{row}{seat_num}"
+                        # Randomly mark some seats as booked (simulate sold tickets)
+                        if random.random() < 0.15:  # 15% booked
+                            status = "BOOKED"
+                        else:
+                            status = "AVAILABLE"
+                        seats_list.append((showtime_id, seat_label, status))
+
+            execute_values(
+                cur,
+                """
+                INSERT INTO seats (showtime_id, seat_label, status)
+                VALUES %s
+                """,
+                seats_list,
+            )
+            print(f"Inserted {len(seats_list)} seats for {len(showtimes)} showtimes")
 
 conn.close()
