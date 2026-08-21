@@ -107,8 +107,7 @@ function MoviesPageContent() {
   };
 
   const handleBookNow = (film: FilmResponse) => {
-    console.log("Booking:", film.title);
-    alert(`Booking for "${film.title}" - Coming soon!`);
+    router.push(`/movies/${film.id}/book`);
   };
 
   const handleLogout = async () => {

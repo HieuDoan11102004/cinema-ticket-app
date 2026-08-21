@@ -302,7 +302,10 @@ export default function FilmDetailPage() {
             )}
 
             {/* Book Now Button */}
-            <button className="px-8 py-4 bg-primary hover:bg-primary-hover text-white text-lg font-semibold rounded-xl transition-colors shadow-lg shadow-primary/25">
+            <button
+              onClick={() => router.push(`/movies/${film.id}/book`)}
+              className="px-8 py-4 bg-primary hover:bg-primary-hover text-white text-lg font-semibold rounded-xl transition-colors shadow-lg shadow-primary/25"
+            >
               Book Tickets Now
             </button>
           </div>

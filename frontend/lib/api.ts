@@ -66,6 +66,20 @@ export interface FilmListResponse {
   per_page: number;
 }
 
+export interface ShowtimeResponse {
+  id: number;
+  film_id: number;
+  film_title: string;
+  cinema_room: string;
+  start_time: string;
+  base_price: number;
+}
+
+export interface ShowtimeListResponse {
+  showtimes: ShowtimeResponse[];
+  total: number;
+}
+
 export interface ApiError {
   detail: string;
 }
@@ -239,6 +253,36 @@ class ApiClient {
         credentials: "include",
       }
     );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async getFilmShowtimes(filmId: number): Promise<ShowtimeResponse[]> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/films/${filmId}/showtimes`,
+      {
+        credentials: "include",
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+    }
+
+    const data: ShowtimeListResponse = await response.json();
+    return data.showtimes;
+  }
+
+  async getShowtimeById(id: number): Promise<ShowtimeResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/showtimes/${id}`, {
+      credentials: "include",
+    });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
