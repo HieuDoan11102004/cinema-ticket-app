@@ -80,6 +80,34 @@ export interface ShowtimeListResponse {
   total: number;
 }
 
+export interface SeatResponse {
+  id: number;
+  showtime_id: number;
+  seat_label: string;
+  status: "available" | "held" | "booked";
+}
+
+export interface SeatListResponse {
+  seats: SeatResponse[];
+  total: number;
+}
+
+export interface HoldSeatsRequest {
+  seat_ids: number[];
+  showtime_id: number;
+}
+
+export interface ReleaseSeatsRequest {
+  seat_ids: number[];
+  showtime_id: number;
+}
+
+export interface SeatActionResponse {
+  success: boolean;
+  message: string;
+  released_seats: SeatResponse[];
+}
+
 export interface ApiError {
   detail: string;
 }
@@ -282,6 +310,64 @@ class ApiClient {
   async getShowtimeById(id: number): Promise<ShowtimeResponse> {
     const response = await fetch(`${this.baseUrl}/api/v1/showtimes/${id}`, {
       credentials: "include",
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async getShowtimeSeats(showtimeId: number): Promise<SeatListResponse> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/showtimes/${showtimeId}/seats`,
+      {
+        credentials: "include",
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async holdSeats(seatIds: number[], showtimeId: number): Promise<SeatActionResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/seats/hold`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        seat_ids: seatIds,
+        showtime_id: showtimeId,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async releaseSeats(seatIds: number[], showtimeId: number): Promise<SeatActionResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/seats/release`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        seat_ids: seatIds,
+        showtime_id: showtimeId,
+      }),
     });
 
     if (!response.ok) {
