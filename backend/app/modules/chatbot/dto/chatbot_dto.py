@@ -12,6 +12,8 @@ class AgentType(str, Enum):
     PRIMARY = "primary_assistant"
     MOVIE = "movie_agent"
     BOOKING = "booking_agent"
+    RECOMMENDATION = "recommendation_agent"
+    ASSISTANT = "assistant"
 
 
 class SuggestedAction(BaseModel):

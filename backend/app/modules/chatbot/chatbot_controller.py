@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.modules.chatbot.dto.chatbot_dto import (
+    AgentType,
     ChatMessageRequest,
     ChatMessageResponse,
     ConversationHistoryResponse,
@@ -56,10 +57,17 @@ async def send_message(
         SuggestedAction(**action) for action in (result.get("suggested_actions") or [])
     ]
 
+    # Map string to AgentType enum
+    agent_str = result.get("agent_used", "assistant")
+    try:
+        agent_used = AgentType(agent_str)
+    except ValueError:
+        agent_used = AgentType.ASSISTANT
+
     return ChatMessageResponse(
         response=result["response"],
         session_id=result["session_id"],
-        agent_used=result.get("agent_used", "assistant"),
+        agent_used=agent_used,
         suggested_actions=suggested,
     )
 
