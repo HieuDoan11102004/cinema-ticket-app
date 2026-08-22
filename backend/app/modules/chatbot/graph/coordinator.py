@@ -1,14 +1,13 @@
 """Coordinator graph - main LangGraph chatbot orchestration."""
-from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.graph import END, START, StateGraph
 
-from app.modules.chatbot.graph.state import ChatState
-from app.modules.chatbot.graph.nodes.supervisor import supervisor_node, route_intent
-from app.modules.chatbot.graph.nodes.movie_node import movie_node
 from app.modules.chatbot.graph.nodes.booking_node import booking_node
-from app.modules.chatbot.graph.nodes.recommendation_node import recommendation_node
 from app.modules.chatbot.graph.nodes.general_node import general_node
-from app.modules.chatbot.services.llm_service import get_llm_service
+from app.modules.chatbot.graph.nodes.movie_node import movie_node
+from app.modules.chatbot.graph.nodes.recommendation_node import recommendation_node
+from app.modules.chatbot.graph.nodes.supervisor import route_intent, supervisor_node
+from app.modules.chatbot.graph.state import ChatState
 
 
 def create_coordinator_graph() -> StateGraph:

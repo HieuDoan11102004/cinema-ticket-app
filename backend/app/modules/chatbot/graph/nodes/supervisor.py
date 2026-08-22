@@ -4,7 +4,7 @@ from typing import Literal
 from langchain_openai import ChatOpenAI
 
 from app.modules.chatbot.graph.state import ChatState
-from app.shared.core.config import LLM_MODEL, LLM_TEMPERATURE, OPENAI_API_KEY
+from app.shared.core.config import LLM_MODEL, OPENAI_API_KEY
 
 INTENTS = [
     "film_info",
