@@ -1,4 +1,4 @@
-"""Chatbot module - Multi-agent chatbot for CineBook."""
-from app.modules.chatbot.agents.primary_assistant import PrimaryAssistant
+"""Chatbot module - LangGraph-based multi-agent chatbot."""
+from app.modules.chatbot.graph import app, run_chatbot
 
-__all__ = ["PrimaryAssistant"]
+__all__ = ["app", "run_chatbot"]
