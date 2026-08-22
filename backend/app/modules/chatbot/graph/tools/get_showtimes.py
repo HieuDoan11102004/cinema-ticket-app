@@ -27,10 +27,11 @@ def get_showtimes(
     Returns:
         Dict with showtimes list
     """
-    from app.modules.films.film_repository import FilmRepository
     from sqlalchemy import and_, select
-    from app.shared.db.database import SessionLocal
+
     from app.models.showtime import Showtime
+    from app.modules.films.film_repository import FilmRepository
+    from app.shared.db.database import SessionLocal
 
     db = SessionLocal()
     try:
@@ -50,7 +51,6 @@ def get_showtimes(
         if date:
             try:
                 target_date = datetime.strptime(date, "%Y-%m-%d").date()
-                from datetime import timedelta
                 stmt = stmt.where(
                     and_(
                         Showtime.start_time >= datetime.combine(target_date, datetime.min.time()),

@@ -1,7 +1,6 @@
 """Search movies tool."""
-from typing import Annotated, Sequence
+from typing import Annotated
 
-from langchain_core.messages import BaseMessage
 from langchain_core.tools import tool
 from sqlalchemy.orm import Session
 

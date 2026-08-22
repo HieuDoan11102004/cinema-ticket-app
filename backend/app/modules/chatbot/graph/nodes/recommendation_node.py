@@ -1,11 +1,9 @@
 """Recommendation node - handles movie recommendations."""
-from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI
 
 from app.modules.chatbot.graph.state import ChatState
 from app.modules.chatbot.graph.tools import search_movies
 from app.shared.core.config import LLM_MODEL, LLM_TEMPERATURE, OPENAI_API_KEY
-
 
 SYSTEM_PROMPT = """You are CineBook's movie recommendation expert.
 

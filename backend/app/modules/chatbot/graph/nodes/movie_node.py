@@ -1,11 +1,9 @@
 """Movie node - handles film info, search, and showtimes."""
-from langchain_core.messages import AIMessage, HumanMessage
 from langchain_openai import ChatOpenAI
 
 from app.modules.chatbot.graph.state import ChatState
-from app.modules.chatbot.graph.tools import search_movies, get_showtimes
+from app.modules.chatbot.graph.tools import get_showtimes, search_movies
 from app.shared.core.config import LLM_MODEL, LLM_TEMPERATURE, OPENAI_API_KEY
-
 
 SYSTEM_PROMPT = """You are the Movie Expert for CineBook cinema chatbot.
 

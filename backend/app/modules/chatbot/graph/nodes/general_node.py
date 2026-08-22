@@ -1,10 +1,8 @@
 """General node - handles non-specialized queries."""
-from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI
 
 from app.modules.chatbot.graph.state import ChatState
 from app.shared.core.config import LLM_MODEL, LLM_TEMPERATURE, OPENAI_API_KEY
-
 
 SYSTEM_PROMPT = """You are CineBook's friendly assistant.
 

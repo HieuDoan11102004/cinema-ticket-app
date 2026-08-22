@@ -1,5 +1,4 @@
 """Chatbot Controller - FastAPI router for chatbot endpoints."""
-from typing import Annotated
 from uuid import UUID
 
 import redis.asyncio as redis
@@ -11,7 +10,6 @@ from app.modules.chatbot.dto.chatbot_dto import (
     ChatMessageResponse,
     ConversationHistoryResponse,
     SuggestedAction,
-    MessageEntry,
 )
 from app.modules.chatbot.graph.coordinator import run_chatbot
 from app.modules.chatbot.services.conversation_service import ConversationService

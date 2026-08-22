@@ -18,6 +18,7 @@ def get_booking_status(
         Dict with booking details and status
     """
     from sqlalchemy import select
+
     from app.models.booking import Booking
     from app.models.film import Film
     from app.models.showtime import Showtime

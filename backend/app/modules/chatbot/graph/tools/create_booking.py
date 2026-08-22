@@ -27,9 +27,10 @@ def create_booking(
     Returns:
         Dict with booking result
     """
-    from datetime import UTC, datetime
     from uuid import UUID
+
     from sqlalchemy import and_, select
+
     from app.models.booking import Booking, BookingStatus
     from app.models.seat import Seat, SeatStatus
     from app.shared.db.database import SessionLocal

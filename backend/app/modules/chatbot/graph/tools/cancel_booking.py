@@ -24,6 +24,7 @@ def cancel_booking(
         Dict with cancellation result
     """
     from sqlalchemy import and_, select
+
     from app.models.booking import Booking, BookingStatus
     from app.models.seat import Seat, SeatStatus
     from app.shared.db.database import SessionLocal

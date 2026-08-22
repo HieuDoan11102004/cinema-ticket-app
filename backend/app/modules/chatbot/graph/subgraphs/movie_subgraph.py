@@ -1,8 +1,8 @@
 """Movie subgraph - handles movie-related queries."""
-from langgraph.graph import StateGraph, END
+from langgraph.graph import END, StateGraph
 
-from app.modules.chatbot.graph.state import ChatState
 from app.modules.chatbot.graph.nodes.movie_node import movie_node
+from app.modules.chatbot.graph.state import ChatState
 
 
 def create_movie_subgraph() -> StateGraph:

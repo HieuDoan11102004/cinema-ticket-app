@@ -1,11 +1,13 @@
 """Booking node - handles booking, cancellation, and status."""
-from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI
 
 from app.modules.chatbot.graph.state import ChatState
-from app.modules.chatbot.graph.tools import create_booking, cancel_booking, get_booking_status
+from app.modules.chatbot.graph.tools import (
+    cancel_booking,
+    create_booking,
+    get_booking_status,
+)
 from app.shared.core.config import LLM_MODEL, LLM_TEMPERATURE, OPENAI_API_KEY
-
 
 SYSTEM_PROMPT = """You are the Booking Expert for CineBook cinema chatbot.
 

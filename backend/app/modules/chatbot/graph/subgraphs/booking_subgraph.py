@@ -1,8 +1,8 @@
 """Booking subgraph - handles booking-related queries."""
-from langgraph.graph import StateGraph, END
+from langgraph.graph import END, StateGraph
 
-from app.modules.chatbot.graph.state import ChatState
 from app.modules.chatbot.graph.nodes.booking_node import booking_node
+from app.modules.chatbot.graph.state import ChatState
 
 
 def create_booking_subgraph() -> StateGraph:
