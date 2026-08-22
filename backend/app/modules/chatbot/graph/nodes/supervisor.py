@@ -1,8 +1,10 @@
 """Supervisor node - intent classification and routing."""
 from typing import Literal
 
+from langchain_openai import ChatOpenAI
+
 from app.modules.chatbot.graph.state import ChatState
-from app.modules.chatbot.services.llm_service import LLMMessage, LLMService
+from app.shared.core.config import LLM_MODEL, LLM_TEMPERATURE, OPENAI_API_KEY
 
 INTENTS = [
     "film_info",
@@ -23,14 +25,16 @@ INTENT_EXAMPLES = {
     "recommendation": "What do you recommend I watch tonight?",
 }
 
+# Initialize LLM for classification
+llm = ChatOpenAI(model=LLM_MODEL, temperature=0.1, api_key=OPENAI_API_KEY)
 
-async def supervisor_node(state: ChatState, llm_service: LLMService) -> dict:
+
+async def supervisor_node(state: ChatState) -> dict:
     """
     Classify user intent and route to appropriate agent.
 
     Args:
         state: Current chat state with messages
-        llm_service: LLM service for classification
 
     Returns:
         Dict with classified intent
@@ -56,11 +60,12 @@ Message: "{last_message}"
 
 Respond with ONLY the intent name (e.g., "film_info")."""
 
-    response = await llm_service.chat(
-        messages=[LLMMessage(role="user", content=prompt)],
-        system_prompt="You are an intent classifier. Return ONLY the intent name, nothing else.",
-        temperature=0.1,
-        max_tokens=50,
+    # Use the LLM to classify intent
+    response = await llm.ainvoke(
+        [
+            ("system", "You are an intent classifier. Return ONLY the intent name, nothing else."),
+            ("user", prompt),
+        ]
     )
 
     intent = response.content.strip().lower()
@@ -79,28 +84,28 @@ Respond with ONLY the intent name (e.g., "film_info")."""
 
 
 def route_intent(state: ChatState) -> Literal[
-    "movie_subgraph",
-    "booking_subgraph",
+    "movie_node",
+    "booking_node",
     "recommendation_node",
     "general_node",
 ]:
     """
-    Route to appropriate subgraph based on classified intent.
+    Route to appropriate node based on classified intent.
 
     Args:
         state: Current chat state
 
     Returns:
-        Name of the next node/subgraph to execute
+        Name of the next node to execute
     """
     intent = state.get("intent", "general")
 
     intent_map = {
-        "film_info": "movie_subgraph",
-        "showtimes": "movie_subgraph",
-        "booking": "booking_subgraph",
-        "cancel_booking": "booking_subgraph",
-        "booking_status": "booking_subgraph",
+        "film_info": "movie_node",
+        "showtimes": "movie_node",
+        "booking": "booking_node",
+        "cancel_booking": "booking_node",
+        "booking_status": "booking_node",
         "recommendation": "recommendation_node",
         "general": "general_node",
     }
