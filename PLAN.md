@@ -1,165 +1,207 @@
-# Plan: Redis Seat Locking for Concurrent Booking ✅ IMPLEMENTED
+# Multi-Agent Chatbot Implementation Plan
 
 ## Context
 
-The current seat holding implementation had a **race condition vulnerability**. When `seat_service.py:hold_seats()` was called:
+The user wants to build a multi-agent chatbot system for the CineBook cinema ticket platform. Currently, no chatbot implementation exists — the codebase has a planned `/api/v1/chatbot/*` endpoint but no code. The system needs a primary assistant that routes queries to specialized agents (Movie Agent, Booking Agent), following the existing FastAPI module patterns.
 
-1. It reads seats from Postgres to check availability
-2. Then updates them to HELD
-
-Two concurrent requests could both see seats as AVAILABLE before either writes, causing double-booking.
-
-Redis now provides **atomic distributed locks** with TTL so holds auto-expire, preventing this race condition.
-
-## Current Architecture
+## Architecture Overview
 
 ```
-Seat Model: AVAILABLE → HELD → BOOKED (or back to AVAILABLE on cancel)
-Booking Model: PENDING (10 min expiry) → CONFIRMED
-Payment: Webhook → confirm_payment() → confirm_booking() → seats → BOOKED
+User Message
+     │
+     ▼
+┌─────────────────────────┐
+│   Primary Assistant     │  ← Intent classification, routing
+│   (Orchestrator Agent) │
+└───────────┬─────────────┘
+            │
+    ┌───────┼───────┐
+    ▼       ▼       ▼
+┌───────┐ ┌───────┐ ┌────────────┐
+│Movie  │ │Booking │ │  (Future)  │
+│Agent  │ │ Agent  │ │  More...   │
+└───┬───┘ └───┬───┘ └────────────┘
+    │         │
+    ▼         ▼
+ Database   Database
+ (Films)    (Bookings)
 ```
 
-## Implementation Complete ✅
+## Recommended Approach
 
-### Phase 1: Infrastructure ✅
+### 1. LLM Integration
 
-1. ✅ **Add Redis to Docker Compose** (`docker-compose.yml`)
-   - Redis 7 Alpine image with persistence
-   - Port 6379 exposed
-   - Volume for data persistence
+Use **OpenAI GPT API** via `httpx.AsyncClient` following the existing `tmdb_client.py` pattern:
+- API keys in `config.yaml` + `.env`
+- Async HTTP calls with proper error handling
+- Configurable model (default: `gpt-4o-mini` for cost efficiency)
+- System prompts for each agent to define their behavior
 
-2. ✅ **Add Redis dependency** (`backend/pyproject.toml`)
-   - `redis>=5.0.0`
+### 2. Agent Design
 
-3. ✅ **Add Redis config** (`backend/app/shared/core/config.py`)
-   - `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` from `.env`
-   - `REDIS_URL` for connection
-   - `SEAT_HOLD_TTL` = 600 seconds
+| Agent | Responsibility | Tools/Capabilities |
+|-------|-----------------|---------------------|
+| **Primary Assistant** | Intent classification, query routing, response synthesis | Classify user intent → delegate to specialized agents |
+| **Movie Agent** | Film info, showtimes, recommendations | Query films, showtimes, seat availability |
+| **Booking Agent** | Create/cancel bookings, booking history | Create holds, confirm bookings, view/cancel existing bookings |
 
-4. ✅ **Create Redis client** (`backend/app/shared/redis/client.py`)
-   - `redis.asyncio` for async Redis (FastAPI compatible)
-   - Connection pool pattern
-   - Health check utility
+### 3. Conversation Management
 
-### Phase 2: Redis Lock Service ✅
+Store conversation context in **Redis**:
+- Session-based conversations (TTL: 30 minutes)
+- Conversation history per user
+- Agent handoff state tracking
 
-5. ✅ **Create seat lock service** (`backend/app/modules/seats/seat_lock_service.py`)
+---
 
-   Key design:
-   - Key format: `seat_lock:{showtime_id}:{seat_id}`
-   - Value: JSON `{"user_id": "...", "timestamp": "...", "showtime_id": "..."}`
-   - TTL: 600 seconds (10 minutes)
+## Implementation Plan
 
-   Methods:
-   ```python
-   async def acquire_locks(seat_ids, showtime_id, user_id)
-   async def release_locks(seat_ids, showtime_id, user_id)
-   async def extend_locks(seat_ids, showtime_id, user_id, extra_seconds)
-   async def check_locks(seat_ids, showtime_id)
-   async def get_user_holds(user_id)
-   async def get_remaining_ttl(seat_ids, showtime_id, user_id)
-   ```
+### Phase 1: Core Infrastructure
 
-   Uses Lua scripts for atomic multi-key operations:
-   - `ACQUIRE_LOCKS_SCRIPT` - atomically check and acquire all locks
-   - `RELEASE_LOCKS_SCRIPT` - atomically release owned locks
-   - `EXTEND_LOCKS_SCRIPT` - atomically extend owned locks
+**Files to create:**
+- `backend/app/modules/chatbot/__init__.py`
+- `backend/app/modules/chatbot/agents/base_agent.py` — Abstract base class for all agents
+- `backend/app/modules/chatbot/services/llm_service.py` — LLM API client
+- `backend/app/modules/chatbot/services/conversation_service.py` — Redis-based conversation management
+- `backend/app/modules/chatbot/dto/chatbot_dto.py` — Request/Response models
 
-### Phase 3: Hybrid Lock Check ✅
+**Files to modify:**
+- `backend/app/__init__.py` — Register chatbot router
+- `config.yaml` — Add LLM provider settings
+- `.env` — Add `OPENAI_API_KEY`
 
-6. ✅ **Update SeatService** (`backend/app/modules/seats/seat_service.py`)
+### Phase 2: Primary Assistant Agent
 
-   Modified `hold_seats()`:
-   1. Check Postgres (fast rejection for BOOKED seats)
-   2. Try Redis atomic lock for ALL seats
-   3. If Redis succeeds, update Postgres to HELD
-   4. Return failure if any Redis lock fails
+**Files to create/modify:**
+- `backend/app/modules/chatbot/agents/primary_assistant.py` — Intent classification + routing
 
-   Modified `release_seats()`:
-   1. Verify user owns the locks in Redis
-   2. Update Postgres to AVAILABLE
-   3. Release Redis locks
+**Primary Assistant capabilities:**
+```
+INTENTS:
+  - film_info:    "What movies are showing?", "Tell me about [movie]"
+  - showtimes:    "Show me showtimes for [movie]", "When is [movie] playing?"
+  - booking:      "I want to book tickets", "Book seats for [movie]"
+  - cancel:       "Cancel my booking", "I want to cancel"
+  - booking_status: "What's my booking status?", "Show my bookings"
+  - recommendation: "What do you recommend?", "Suggest a movie"
+  - general:      Anything else → conversational response
+```
 
-### Phase 4: Background Cleanup Worker ✅
+### Phase 3: Movie Agent
 
-7. ✅ **Create Redis hold expiry handler** (`backend/app/modules/seats/seat_lock_worker.py`)
+**Files to create/modify:**
+- `backend/app/modules/chatbot/agents/movie_agent.py`
+- `backend/app/modules/films/films_service.py` — May need new methods for chatbot queries
 
-   - Polls every 30 seconds for orphaned holds
-   - Releases seats marked HELD in Postgres with no Redis lock
-   - Can be run as separate process
+**Movie Agent capabilities:**
+- Search films by title, genre, actor
+- Get film details (description, runtime, rating, poster)
+- List currently showing films
+- Get showtimes for specific films
+- Check seat availability for showtimes
+- Generate recommendations based on preferences
 
-8. ✅ **Update BookingService** (`backend/app/modules/bookings/booking_service.py`)
+### Phase 4: Booking Agent
 
-   Modified `create_booking()`:
-   - Verifies user owns Redis locks for held seats
-   - Clears Redis locks when booking is created (seats now tied to booking)
+**Files to create/modify:**
+- `backend/app/modules/chatbot/agents/booking_agent.py`
+- `backend/app/modules/bookings/bookings_service.py` — May need new methods
 
-   Modified `cancel_booking()`:
-   - Releases Redis locks for the cancelled seats
+**Booking Agent capabilities:**
+- Start booking flow (select showtime, seats)
+- Create seat holds (via Redis)
+- Confirm booking (after payment)
+- View user's bookings
+- Cancel booking
+- Handle payment status
 
-### Phase 5: API Updates ✅
+### Phase 5: API Endpoints
 
-9. ✅ **Update seat controller** (`backend/app/modules/seats/seat_controller.py`)
-   - Pass `user_id` to hold/release (requires auth)
-   - Add `POST /seats/extend` to extend hold TTL
-   - Add `GET /seats/status` to check hold status
+**Files to create/modify:**
+- `backend/app/modules/chatbot/chatbot_controller.py` — FastAPI router
 
-10. ✅ **Update DTOs** (`backend/app/modules/seats/dto/seat_dto.py`)
-    - `HoldSeatsRequest` - requires user context (from auth)
-    - `ExtendHoldRequest` - for extending hold duration
-    - `HoldExpiryResponse` - for remaining time
-    - `HoldStatusResponse` - for status check
+**Endpoints:**
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/v1/chatbot/message` | Send message, receive response |
+| GET | `/api/v1/chatbot/conversation` | Get conversation history |
+| DELETE | `/api/v1/chatbot/conversation` | Clear conversation |
+| POST | `/api/v1/chatbot/confirm-booking` | Confirm booking from chat |
+| POST | `/api/v1/chatbot/cancel-booking` | Cancel booking from chat |
 
-## Files Created/Modified
+---
 
-| File | Status |
+## Critical Files to Modify
+
+| File | Change |
 |------|--------|
-| `docker-compose.yml` | ✅ Modified - Redis service added |
-| `.env` | ✅ Modified - Redis config added |
-| `backend/pyproject.toml` | ✅ Modified - redis dependency added |
-| `backend/app/shared/core/config.py` | ✅ Modified - Redis config added |
-| `backend/app/shared/redis/client.py` | ✅ NEW - Redis client |
-| `backend/app/shared/redis/__init__.py` | ✅ NEW - Redis module init |
-| `backend/app/modules/seats/seat_lock_service.py` | ✅ NEW - Redis lock logic |
-| `backend/app/modules/seats/seat_lock_worker.py` | ✅ NEW - Expiry handler |
-| `backend/app/modules/seats/seat_service.py` | ✅ Modified - Redis locking |
-| `backend/app/modules/seats/seat_controller.py` | ✅ Modified - async + auth |
-| `backend/app/modules/seats/dto/seat_dto.py` | ✅ Modified - Extended DTOs |
-| `backend/app/modules/bookings/booking_service.py` | ✅ Modified - Redis integration |
-| `backend/app/modules/bookings/booking_controller.py` | ✅ Modified - async methods |
-| `backend/app/__init__.py` | ✅ Modified - Redis lifespan |
+| `backend/app/__init__.py` | Import and register `chatbot_router` |
+| `backend/app/shared/core/config.py` | Add LLM config loading |
+| `config.yaml` | Add `llm:` section with provider, model, api_key |
+| `.env` | Add `OPENAI_API_KEY=sk-...` |
 
-## Redis Key Schema
+## Reusable Patterns to Follow
 
+From existing code:
+- **External API calls**: `modules/films/tmdb_client.py` — `httpx.AsyncClient` pattern
+- **Redis integration**: `modules/seats/seat_lock_service.py` — Redis Lua scripts
+- **Service/repository pattern**: All existing modules follow this
+- **DTO patterns**: Standardized Pydantic models in `dto/` folders
+- **Dependency injection**: `Depends(get_db)`, `Depends(get_redis)`
+
+---
+
+## API Contract
+
+### Request
+```json
+POST /api/v1/chatbot/message
+{
+  "message": "What movies are showing tonight?",
+  "user_id": "uuid-string",  // Optional, for authenticated users
+  "session_id": "optional-session-id"
+}
 ```
-seat_lock:{showtime_id}:{seat_id} = '{"user_id":"...", "timestamp":..., "showtime_id":...}'  TTL=600s
-user_holds:{user_id} = set of "showtime_id:seat_id"                                        TTL=600s
+
+### Response
+```json
+{
+  "response": "Here are the movies showing tonight at CineBook:\n\n1. **Dune: Part Three** - Sci-Fi, Adventure - 9.2/10\n2. **The Batman** - Action, Crime - 8.5/10\n...",
+  "session_id": "uuid-session-id",
+  "agent_used": "movie_agent",
+  "suggested_actions": [
+    {"label": "Book tickets for Dune", "action": "book", "film_id": 5},
+    {"label": "See showtimes", "action": "showtimes", "film_id": 5}
+  ]
+}
 ```
 
-## Testing
+---
 
-1. Start Redis: `docker compose up -d redis`
-2. Run the app: `cd backend && uv run uvicorn app:app --reload`
-3. Test manual flow:
-   ```bash
-   # Login to get token
-   curl -X POST http://localhost:8000/api/v1/auth/login \
-     -H "Content-Type: application/json" \
-     -d '{"email": "test@example.com", "password": "password"}'
+## Verification Plan
 
-   # Hold seats (requires auth)
-   curl -X POST http://localhost:8000/api/v1/seats/hold \
-     -H "Authorization: Bearer $TOKEN" \
-     -H "Content-Type: application/json" \
-     -d '{"seat_ids": [1, 2], "showtime_id": 1}'
+1. **Unit tests**: Test each agent's intent classification and response generation
+2. **Integration tests**: Test full conversation flows with mocked LLM
+3. **Manual testing**: Send messages via Swagger UI (`/docs`)
+4. **End-to-end test**:
+   - Start server: `cd backend && uv run uvicorn app:app --reload`
+   - Send message: `curl -X POST http://localhost:8000/api/v1/chatbot/message -H "Content-Type: application/json" -d '{"message": "What movies are playing?"}'`
+   - Verify response contains film information
+   - Test booking flow end-to-end
 
-   # Check hold status
-   curl "http://localhost:8000/api/v1/seats/status?seat_ids=1&seat_ids=2&showtime_id=1" \
-     -H "Authorization: Bearer $TOKEN"
+## Optional Enhancements (Future)
 
-   # Release seats
-   curl -X POST http://localhost:8000/api/v1/seats/release \
-     -H "Authorization: Bearer $TOKEN" \
-     -H "Content-Type: application/json" \
-     -d '{"seat_ids": [1, 2], "showtime_id": 1}'
-   ```
+- **Recommendation Agent**: AI-powered movie suggestions
+- **Payment Agent**: Handle payment webhook events
+- **Multi-language support**: Vietnamese/English
+- **Streaming responses**: Server-sent events for real-time typing effect
+- **Memory agent**: Long-term user preference learning
+
+---
+
+## Estimated Complexity
+
+- **Phase 1-2 (Core + Primary Assistant)**: ~2-3 hours
+- **Phase 3-4 (Movie + Booking Agents)**: ~3-4 hours
+- **Phase 5 (API Endpoints)**: ~1-2 hours
+- **Total**: ~6-9 hours for basic implementation

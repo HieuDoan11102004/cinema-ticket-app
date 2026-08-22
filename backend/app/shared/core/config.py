@@ -79,3 +79,12 @@ def _parse_duration(duration_str: str) -> int:
 
 JWT_ACCESS_TOKEN_EXPIRE = _parse_duration(_jwt.get("JWT_ACCESS_TOKEN_EXPIRE", "30m"))
 JWT_REFRESH_TOKEN_EXPIRE = _parse_duration(_jwt.get("JWT_REFRESH_TOKEN_EXPIRE", "168h"))
+
+# LLM (OpenAI) configuration
+_llm = _yaml.get("llm", {})
+LLM_PROVIDER = _llm.get("provider", "openai")
+LLM_MODEL = _llm.get("model", "gpt-4o-mini")
+LLM_MAX_TOKENS = _llm.get("max_tokens", 1000)
+LLM_TEMPERATURE = _llm.get("temperature", 0.7)
+LLM_CONVERSATION_TTL = _llm.get("conversation_ttl", 1800)  # 30 minutes
+OPENAI_API_KEY = getenv("OPENAI_API_KEY", "")

@@ -9,6 +9,7 @@ from app.modules.seats.seat_controller import router as seat_router
 from app.modules.showtimes.showtime_controller import router as showtime_router
 from app.modules.bookings.booking_controller import router as booking_router
 from app.modules.payments.payment_controller import router as payment_router
+from app.modules.chatbot.chatbot_controller import router as chatbot_router
 
 
 @asynccontextmanager
@@ -43,6 +44,7 @@ app.include_router(seat_router)
 app.include_router(showtime_router)
 app.include_router(booking_router)
 app.include_router(payment_router)
+app.include_router(chatbot_router)
 
 
 @app.get("/health")

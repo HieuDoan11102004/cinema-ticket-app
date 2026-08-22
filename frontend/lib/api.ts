@@ -172,6 +172,44 @@ export interface ApiError {
   detail: string;
 }
 
+// ============ Chatbot Types ============
+
+export type AgentType = "primary_assistant" | "movie_agent" | "booking_agent";
+
+export interface SuggestedAction {
+  label: string;
+  action: string;
+  params?: Record<string, unknown>;
+}
+
+export interface ChatMessageRequest {
+  message: string;
+  user_id?: string;
+  session_id?: string;
+}
+
+export interface ChatMessageResponse {
+  response: string;
+  session_id: string;
+  agent_used: AgentType;
+  suggested_actions: SuggestedAction[];
+  timestamp: string;
+}
+
+export interface MessageEntry {
+  role: string;
+  content: string;
+  agent?: AgentType;
+  timestamp: string;
+}
+
+export interface ConversationHistoryResponse {
+  session_id: string;
+  messages: MessageEntry[];
+  created_at: string;
+  last_updated: string;
+}
+
 class ApiClient {
   private baseUrl: string;
 
@@ -572,6 +610,66 @@ class ApiClient {
         credentials: "include",
       }
     );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  // ============ Chatbot Methods ============
+
+  async sendChatMessage(data: ChatMessageRequest): Promise<ChatMessageResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/chatbot/message`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async getConversation(sessionId: string): Promise<ConversationHistoryResponse> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/chatbot/conversation/${sessionId}`,
+      {
+        credentials: "include",
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async clearConversation(sessionId: string): Promise<void> {
+    await fetch(
+      `${this.baseUrl}/api/v1/chatbot/conversation/${sessionId}`,
+      {
+        method: "DELETE",
+        credentials: "include",
+      }
+    );
+  }
+
+  async createChatSession(): Promise<{ session_id: string }> {
+    const response = await fetch(`${this.baseUrl}/api/v1/chatbot/conversation`, {
+      method: "POST",
+      credentials: "include",
+    });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));

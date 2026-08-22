@@ -6,6 +6,7 @@ import { api, FilmResponse } from "@/lib/api";
 import { FilmCard } from "@/components/FilmCard";
 import { SearchBar } from "@/components/SearchBar";
 import { GenreFilter } from "@/components/GenreFilter";
+import { ChatWindow } from "@/components/chatbot";
 
 const STATUS_OPTIONS = [
   { value: "", label: "All" },
@@ -317,6 +318,9 @@ function MoviesPageContent() {
           </>
         )}
       </main>
+
+      {/* Chatbot Widget */}
+      <ChatWindow />
     </div>
   );
 }

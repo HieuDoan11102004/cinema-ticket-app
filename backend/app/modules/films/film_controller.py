@@ -18,21 +18,37 @@ async def list_films(
     status: Optional[str] = Query(None, description="Filter by status (e.g., Released, Post Production)"),
     skip: int = Query(0, ge=0, description="Number of films to skip"),
     limit: int = Query(20, ge=1, le=100, description="Max films to return"),
+    use_fts: bool = Query(False, description="Use full-text search (faster, better ranking)"),
     db: Session = Depends(get_db),
 ):
-    """Get all films with optional search and filters."""
+    """
+    Get all films with optional search and filters.
+
+    Use `use_fts=true` for better search results with PostgreSQL full-text search.
+    """
     service = FilmService(db)
 
     # If search or filters are provided, use search
     if q or genres or status:
         genre_list = [g.strip() for g in genres.split(",")] if genres else None
-        films, total = service.search_films(
-            query=q,
-            genres=genre_list,
-            status=status,
-            skip=skip,
-            limit=limit,
-        )
+
+        # Use FTS if requested (recommended for search)
+        if use_fts:
+            films, total = service.search_films_fts(
+                query=q,
+                genres=genre_list,
+                status=status,
+                skip=skip,
+                limit=limit,
+            )
+        else:
+            films, total = service.search_films(
+                query=q,
+                genres=genre_list,
+                status=status,
+                skip=skip,
+                limit=limit,
+            )
     else:
         films = service.get_films(skip=skip, limit=limit)
         total = service.repository.count()

@@ -143,7 +143,7 @@ class FilmService:
         skip: int = 0,
         limit: int = 20,
     ) -> Tuple[List, int]:
-        """Search films with filters."""
+        """Search films with filters (legacy ILIKE search)."""
         return self.repository.search(
             query=query,
             genres=genres,
@@ -151,3 +151,39 @@ class FilmService:
             skip=skip,
             limit=limit,
         )
+
+    def search_films_fts(
+        self,
+        query: Optional[str] = None,
+        genres: Optional[List[str]] = None,
+        status: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 20,
+    ) -> Tuple[List, int]:
+        """
+        Search films using PostgreSQL full-text search.
+
+        Features:
+        - Fast GIN index-based search
+        - Weighted ranking (title > overview > genres)
+        - Better relevance scoring
+
+        Falls back to ILIKE search if FTS columns don't exist.
+        """
+        try:
+            return self.repository.search_fts(
+                query=query,
+                genres=genres,
+                status=status,
+                skip=skip,
+                limit=limit,
+            )
+        except Exception:
+            # Fallback to ILIKE search
+            return self.repository.search(
+                query=query,
+                genres=genres,
+                status=status,
+                skip=skip,
+                limit=limit,
+            )

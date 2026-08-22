@@ -6,6 +6,13 @@ jwt:
   JWT_ACCESS_TOKEN_EXPIRE: 30m
   JWT_REFRESH_TOKEN_EXPIRE: 168h
 
+llm:
+  provider: "openai"
+  model: "gpt-4o-mini"
+  max_tokens: 1000
+  temperature: 0.7
+  conversation_ttl: 1800  # 30 minutes in seconds
+
 tmdb:
   api_key: "13cc4897d905245d2db4972b5a138345"
   access_token: "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIxM2NjNDg5N2Q5MDUyNDVkMmRiNDk3MmI1YTEzODM0NSIsIm5iZiI6MTc4NzE1MDY1MS45MjMsInN1YiI6IjZhODVjMTNiNzg4YzIyYTA0ZjllNTcwMyIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.w3QZUyHACe4kMxq-R9ukMof9MgQfSSEvH86alFSeBLU"

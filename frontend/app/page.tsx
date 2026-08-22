@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { api, FilmResponse } from "@/lib/api";
 import { HeroSection } from "@/components/HeroSection";
 import { FilmRow } from "@/components/FilmRow";
+import { ChatWindow } from "@/components/chatbot";
 
 export default function Home() {
   const router = useRouter();
@@ -163,6 +164,9 @@ export default function Home() {
           </>
         )}
       </main>
+
+      {/* Chatbot Widget */}
+      <ChatWindow />
     </div>
   );
 }
